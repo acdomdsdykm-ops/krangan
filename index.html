@@ -124,16 +124,14 @@ function login() {
   const user = document.getElementById("user").value;
   const pass = document.getElementById("pass").value;
 
-  fetch(API, {
-    method: "POST",
-    headers: {
-      "Content-Type": "text/plain"
-    },
-    body: JSON.stringify({
-      action: "login",
-      user,
-      pass
+ fetch(API, {
+  method: "POST",
+  body: JSON.stringify({
+    action: "login",
+    user,
+    pass
     })
+  })
   })
   .then(r => r.json())
   .then(data => {
