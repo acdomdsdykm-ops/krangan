@@ -79,6 +79,8 @@ button {
 }
 </style>
 </head>
+  
+<script src="app.js"></script>
 
 <body>
 
@@ -121,38 +123,33 @@ let qrScanner;
 /* ================= LOGIN (FIXED GLOBAL) ================= */
 window.login = function () {
 
-  fetch("https://script.google.com/macros/s/AKfycbzy5OrOwJ9Z00sVLvpg-b-jcX0hzHHkBZnUvHIgDCZk2MPxtmH8UnXsBJyQAVHuMh2Y/exec"){
-  method: "POST",
-  headers: {
-    "Content-Type": "text/plain"
-  },
-  body: JSON.stringify({
-    action: "login",
-    user,
-    pass
+ function login() {
+  console.log("login function triggered");
+
+  const user = document.getElementById("user").value;
+  const pass = document.getElementById("pass").value;
+
+  fetch(WEB_APP_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "text/plain"
+    },
+    body: JSON.stringify({
+      action: "login",
+      user,
+      pass
+    })
   })
-})
-.then(r => r.json())
-.then(data => console.log(data));
-    }
-
-    role = res.role;
-
-    document.getElementById("loginBox").style.display = "none";
-    document.getElementById("dashboard").style.display = "block";
-
-    setTimeout(() => {
-      document.getElementById("dashboard").classList.add("active");
-    }, 50);
-
-    setupUI();
-    startQR();
-
-    if (role === "admin") loadAnalytics();
-
+  .then(r => r.json())
+  .then(data => {
+    console.log(data);
+    alert(data.success ? "Login berjaya" : "Login gagal");
   })
-  .catch(err => alert("Error login: " + err));
-};
+  .catch(err => {
+    console.error(err);
+    alert("Server error");
+  });
+}
 
 /* ================= ROLE UI ================= */
 window.setupUI = function () {
