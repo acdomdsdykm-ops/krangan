@@ -121,23 +121,19 @@ let qrScanner;
 /* ================= LOGIN (FIXED GLOBAL) ================= */
 window.login = function () {
 
-  fetch(API, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      action: "login",
-      user: document.getElementById("user").value,
-      pass: document.getElementById("pass").value
-    })
+  fetch("https://script.google.com/macros/s/AKfycbz250YDvXV00Xk_qNQN339_HiW_6EtI-PnyyIoHflwz79JJlVxC8GVcV_3CgZvO5gC0/exec"){
+  method: "POST",
+  headers: {
+    "Content-Type": "text/plain"
+  },
+  body: JSON.stringify({
+    action: "login",
+    user,
+    pass
   })
-  .then(r => r.json())
-  .then(res => {
-
-    if (!res.success) {
-      alert("Login gagal");
-      return;
+})
+.then(r => r.json())
+.then(data => console.log(data));
     }
 
     role = res.role;
