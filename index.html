@@ -20,27 +20,7 @@ body {
   display: block;
 }
 
-.box {
-  display:none;
-  padding:10px;
-  opacity:0;
-  transform:translateY(20px);
-  transition:all 0.5s ease;
-}
-
-.box.active {
-  opacity:1;
-  transform:translateY(0);
-}
-
-#dashboard {
-  transform:scale(0.98);
-  transition:all 0.5s ease;
-}
-
-#dashboard.active {
-  transform:scale(1);
-}
+.box { display:none; padding:10px; }
 
 input, button {
   padding:12px;
@@ -87,7 +67,7 @@ button {
 <h2>🏫 Sistem Kehadiran Sekolah</h2>
 
 <!-- LOGIN -->
-<div id="loginBox" class="box active" style="display:block;">
+<div id="loginBox" class="box" style="display:block;">
   <input id="user" placeholder="Username"><br>
   <input id="pass" type="password" placeholder="Password"><br>
   <button onclick="login()">Login</button>
@@ -102,10 +82,13 @@ button {
 
   <div id="pdfBox"></div>
 
+  <!-- ADMIN PANEL -->
   <div id="adminPanel" class="panel" style="display:none;">
     <h3>📊 Dashboard Analytics</h3>
+
     <p id="totalMurid">-</p>
     <p id="totalHadir">-</p>
+
     <canvas id="chart" width="300" height="200"></canvas>
   </div>
 
@@ -118,40 +101,41 @@ const API = "https://script.google.com/macros/s/AKfycbx_VG5_UxZhXpXFPA555KHeK-8o
 let role = "";
 let qrScanner;
 
-/* ================= LOGIN (FIXED GLOBAL) ================= */
+/* LOGIN */
 function login() {
 
-  const user = document.getElementById("user").value;
-  const pass = document.getElementById("pass").value;
-
- fetch(API, {
-  method: "POST",
-  body: JSON.stringify({
-    action: "login",
-    user,
-    pass
+  fetch(API, {
+    method: "POST",
+    body: JSON.stringify({
+      action: "login",
+      user: user.value,
+      pass: pass.value
     })
   })
-  })
   .then(r => r.json())
-  .then(data => {
+  .then(res => {
 
-    if (!data.success) {
+    if (!res.success) {
       alert("Login gagal");
       return;
     }
 
-    alert("Login berjaya");
+    role = res.role;
 
-  })
-  .catch(err => {
-    console.error("Error login:", err);
-    alert("Tak boleh connect server");
+    loginBox.style.display = "none";
+    dashboard.style.display = "block";
+
+    setupUI();
+    startQR();
+
+    if (role === "admin") loadAnalytics();
+
   });
+
 }
 
-/* ================= ROLE UI ================= */
-window.setupUI = function () {
+/* UI ROLE */
+function setupUI() {
 
   if (role === "guru" || role === "admin") {
     document.getElementById("pdfBox").innerHTML =
@@ -161,85 +145,60 @@ window.setupUI = function () {
   if (role === "admin") {
     document.getElementById("adminPanel").style.display = "block";
   }
+}
 
-};
+/* QR */
+function startQR() {
 
-/* ================= QR SCAN (FIX SAFE) ================= */
-window.startQR = function () {
+  qrScanner = new Html5Qrcode("reader");
 
-  Html5Qrcode.getCameras().then(devices => {
+  qrScanner.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: 250 },
+    (text) => {
 
-    if (!devices.length) {
-      alert("Kamera tidak dijumpai");
-      return;
+      fetch(API, {
+        method: "POST",
+        body: JSON.stringify({ id: text })
+      })
+      .then(r => r.json())
+      .then(res => {
+
+        if (res.status === "duplicate") {
+          result.innerHTML = "❌ " + res.message;
+          result.className = "error";
+          return;
+        }
+
+        result.innerHTML = "✅ " + res.nama + " (" + res.kelas + ")";
+        result.className = "success";
+
+      });
+
     }
+  );
+}
 
-    qrScanner = new Html5Qrcode("reader");
-
-    qrScanner.start(
-      devices[0].id,
-      { fps: 10, qrbox: 250 },
-      (text) => {
-
-        fetch(API, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: text })
-        })
-        .then(r => r.json())
-        .then(res => {
-
-          const result = document.getElementById("result");
-
-          if (res.status === "duplicate") {
-            result.innerHTML = "❌ " + res.message;
-            result.className = "error";
-            return;
-          }
-
-          result.innerHTML = "✅ " + res.nama + " (" + res.kelas + ")";
-          result.className = "success";
-
-        });
-
-      }
-    ).catch(err => {
-      alert("Kamera error: " + err);
-    });
-
-  });
-
-};
-
-/* ================= PDF (FIX RESPONSE SAFE) ================= */
-window.generatePDF = function () {
+/* PDF */
+function generatePDF() {
 
   fetch(API, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action: "pdf" })
   })
   .then(r => r.json())
   .then(res => {
-
-    if (!res.success || !res.url) {
-      alert("PDF gagal dijana");
-      return;
-    }
-
+    alert("PDF siap: " + res.url);
     window.open(res.url, "_blank");
+  });
 
-  })
-  .catch(err => alert("PDF error: " + err));
+}
 
-};
-
-/* ================= ANALYTICS ================= */
-window.loadAnalytics = function () {
+/* ANALYTICS */
+function loadAnalytics() {
 
   fetch(API, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action: "analytics" })
   })
   .then(r => r.json())
@@ -264,7 +223,7 @@ window.loadAnalytics = function () {
 
   });
 
-};
+}
 
 </script>
 
