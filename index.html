@@ -8,172 +8,275 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
+body {
+  font-family: Arial;
+  text-align: center;
+  background: #f5f5f5;
+}
 
-body { font-family: Arial; text-align:center; background:#f5f5f5; }
-
-.logo { width:90px; margin:15px auto; display:block; }
+.logo {
+  width: 90px;
+  margin: 15px auto;
+  display: block;
+}
 
 .box { display:none; padding:10px; }
 
-input,button{
-  padding:12px;width:85%;margin:6px;border-radius:8px;border:1px solid #ccc;
+input, button {
+  padding:12px;
+  width:85%;
+  margin:6px;
+  border-radius:8px;
+  border:1px solid #ccc;
 }
 
-button{background:#3498db;color:white;border:none;cursor:pointer;}
-
-#result{font-size:18px;font-weight:bold;}
-
-.success{color:green;}
-.error{color:red;}
-
-#reader{width:300px;margin:auto;}
-
-/* LOGIN LOADING */
-#loginLoading,#pdfLoading{
-  display:none;
+button {
+  background:#3498db;
+  color:white;
+  border:none;
+  cursor:pointer;
 }
 
-.spinner{
-  width:30px;height:30px;
-  border:4px solid #eee;
-  border-top:4px solid #3498db;
-  border-radius:50%;
-  animation:spin 1s linear infinite;
+#result {
+  font-size:18px;
+  font-weight:bold;
+  margin-top:10px;
+}
+
+.success { color:green; }
+.error { color:red; }
+
+#reader {
+  width:300px;
   margin:auto;
 }
 
-@keyframes spin{100%{transform:rotate(360deg)}}
-
-/* PDF LOADING */
-#pdfLoading{
-  position:fixed;top:0;left:0;
-  width:100%;height:100%;
-  background:rgba(0,0,0,0.7);
-  color:white;
-  align-items:center;
-  justify-content:center;
-  flex-direction:column;
-  z-index:9999;
+.panel {
+  margin-top:15px;
+  background:white;
+  padding:10px;
+  border-radius:10px;
 }
-
 </style>
 </head>
 
 <body>
 
 <img class="logo" src="logo.png">
+
 <h2>🏫 Sistem Kehadiran Sekolah</h2>
 
 <!-- LOGIN -->
-<div id="loginBox" class="box" style="display:block">
-
-<input id="user" placeholder="Username">
-<input id="pass" type="password" placeholder="Password">
-
-<button onclick="login()">Login</button>
-
-<div id="loginLoading">
-<div class="spinner"></div>
-<p>Logging in...</p>
-</div>
-
+<div id="loginBox" class="box" style="display:block;">
+  <input id="user" placeholder="Username"><br>
+  <input id="pass" type="password" placeholder="Password"><br>
+  <button onclick="login()">Login</button>
 </div>
 
 <!-- DASHBOARD -->
 <div id="dashboard" class="box">
 
-<h3>QR Scan</h3>
-<div id="reader"></div>
+  <h3>📷 QR Scan</h3>
+  <div id="reader"></div>
 
-<p id="result"></p>
+  <p id="status">Sedia untuk scan...</p>
+  <p id="result"></p>
 
-<button onclick="generatePDF()">📄 Jana PDF</button>
+  <div id="pdfBox"></div>
 
-</div>
+  <!-- ADMIN PANEL -->
+  <div id="adminPanel" class="panel" style="display:none;">
+    <h3>📊 Dashboard Analytics</h3>
 
-<!-- PDF LOADING -->
-<div id="pdfLoading">
-<div class="spinner"></div>
-<h3>Menjana PDF...</h3>
+    <p id="totalMurid">-</p>
+    <p id="totalHadir">-</p>
+
+    <canvas id="chart" width="300" height="200"></canvas>
+  </div>
+
 </div>
 
 <script>
 
-const API="https://script.google.com/macros/s/AKfycbySag-8wanEUxWTVAElI90pUUGwpwzU8IBxy9mahJHPB9YKdHeHezkP66Cw2dvGSdBJ/exec";
+const API = "https://script.google.com/macros/s/AKfycbwYiOPORjC_Zw_e8tq6sWHGkVjPUAVYKrhutrlQFWL93hugesCdq4jSXn5Yqatb8WBm/exec";
 
-let role="";
+let role = "";
+let qrScanner;
+let scanning = false;
 
-function login(){
+/* ================= LOGIN ================= */
+function login() {
 
-document.getElementById("loginLoading").style.display="block";
+  fetch(API, {
+    method: "POST",
+    body: JSON.stringify({
+      action: "login",
+      user: user.value,
+      pass: pass.value
+    })
+  })
+  .then(r => r.json())
+  .then(res => {
 
-fetch(API,{
-method:"POST",
-body:JSON.stringify({
-action:"login",
-user:user.value,
-pass:pass.value
-})
-})
-.then(r=>r.json())
-.then(res=>{
+    if (!res.success) {
+      alert("Login gagal");
+      return;
+    }
 
-document.getElementById("loginLoading").style.display="none";
+    role = res.role;
 
-if(!res.success){
-alert("Login gagal");return;
-}
+    loginBox.style.display = "none";
+    dashboard.style.display = "block";
 
-role=res.role;
+    setupUI();
+    startQR();
 
-loginBox.style.display="none";
-dashboard.style.display="block";
+    if (role === "admin") loadAnalytics();
 
-startQR();
-
-});
-
-}
-
-function startQR(){
-
-new Html5Qrcode("reader").start(
-{facingMode:"environment"},
-{fps:10,qrbox:250},
-(text)=>{
-
-fetch(API,{
-method:"POST",
-body:JSON.stringify({id:text})
-})
-.then(r=>r.json())
-.then(res=>{
-
-result.innerText=res.nama+" "+res.kelas;
-
-});
-
-}
-);
+  });
 
 }
 
-function generatePDF(){
+/* ================= UI ================= */
+function setupUI() {
 
-document.getElementById("pdfLoading").style.display="flex";
+  if (role === "guru" || role === "admin") {
+    document.getElementById("pdfBox").innerHTML =
+      `<button onclick="generatePDF()">📄 Jana PDF Kehadiran</button>`;
+  }
 
-fetch(API,{
-method:"POST",
-body:JSON.stringify({action:"pdf"})
-})
-.then(r=>r.json())
-.then(res=>{
+  if (role === "admin") {
+    document.getElementById("adminPanel").style.display = "block";
+  }
+}
 
-document.getElementById("pdfLoading").style.display="none";
+/* ================= QR SCAN ================= */
+function startQR() {
 
-window.open(res.url,"_blank");
+  qrScanner = new Html5Qrcode("reader");
 
-});
+  qrScanner.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: 250 },
+    (text) => {
+
+      if (scanning) return;
+      scanning = true;
+
+      document.getElementById("status").innerText = "🔄 Memproses...";
+
+      fetch(API, {
+        method: "POST",
+        body: JSON.stringify({ id: text })
+      })
+      .then(r => r.json())
+      .then(res => {
+
+        if (res.status === "duplicate") {
+          showResult("❌ " + res.message, "error");
+          resetScan();
+          return;
+        }
+
+        showResult("✅ " + res.nama + " (" + res.kelas + ")", "success");
+
+        // 🔊 SOUND
+        playBeep();
+
+        // 📳 VIBRATE (mobile only)
+        vibratePhone();
+
+        resetScan();
+
+      })
+      .catch(() => {
+        showResult("❌ Error server", "error");
+        resetScan();
+      });
+
+    }
+  );
+}
+
+/* ================= RESULT ================= */
+function showResult(msg, type) {
+  const r = document.getElementById("result");
+  r.innerText = msg;
+  r.className = type;
+}
+
+/* ================= RESET SCAN ================= */
+function resetScan() {
+  setTimeout(() => {
+    scanning = false;
+    document.getElementById("status").innerText = "Sedia untuk scan...";
+  }, 1200);
+}
+
+/* ================= 🔊 BEEP SOUND ================= */
+function playBeep() {
+  try {
+    const audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+    audio.play();
+  } catch (e) {}
+}
+
+/* ================= 📳 VIBRATION ================= */
+function vibratePhone() {
+  try {
+    if (navigator.vibrate) {
+      navigator.vibrate([200, 100, 200]); // pattern getar
+    }
+  } catch (e) {}
+}
+
+/* ================= PDF ================= */
+function generatePDF() {
+
+  document.getElementById("pdfBox").innerHTML = "⏳ Menjana PDF...";
+
+  fetch(API, {
+    method: "POST",
+    body: JSON.stringify({ action: "pdf" })
+  })
+  .then(r => r.json())
+  .then(res => {
+
+    document.getElementById("pdfBox").innerHTML =
+      `<a href="${res.url}" target="_blank">📄 Buka PDF</a>`;
+
+  });
+
+}
+
+/* ================= ANALYTICS ================= */
+function loadAnalytics() {
+
+  fetch(API, {
+    method: "POST",
+    body: JSON.stringify({ action: "analytics" })
+  })
+  .then(r => r.json())
+  .then(res => {
+
+    document.getElementById("totalMurid").innerText =
+      "Total Murid: " + res.totalMurid;
+
+    document.getElementById("totalHadir").innerText =
+      "Total Kehadiran: " + res.totalHadir;
+
+    new Chart(document.getElementById("chart"), {
+      type: "bar",
+      data: {
+        labels: ["Hadir", "Tidak Hadir"],
+        datasets: [{
+          label: "Kehadiran",
+          data: [res.totalHadir, res.totalTidak]
+        }]
+      }
+    });
+
+  });
 
 }
 
