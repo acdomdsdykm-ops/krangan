@@ -57,14 +57,49 @@ button {
   padding:10px;
   border-radius:10px;
 }
+
+/* ================= LOADING ================= */
+.overlay {
+  position:fixed;
+  top:0;left:0;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,0.6);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  color:white;
+  z-index:9999;
+}
+
+.spinner {
+  width:50px;
+  height:50px;
+  border:5px solid #ccc;
+  border-top:5px solid #3498db;
+  border-radius:50%;
+  animation:spin 1s linear infinite;
+  margin-bottom:10px;
+}
+
+@keyframes spin {
+  0% {transform:rotate(0);}
+  100% {transform:rotate(360deg);}
+}
 </style>
 </head>
 
 <body>
 
 <img class="logo" src="logo.png">
-
 <h2>🏫 Sistem Kehadiran Sekolah</h2>
+
+<!-- LOADING -->
+<div id="overlay" class="overlay">
+  <div class="spinner"></div>
+  <div id="loadingText">Loading...</div>
+</div>
 
 <!-- LOGIN -->
 <div id="loginBox" class="box" style="display:block;">
@@ -84,203 +119,163 @@ button {
 
   <div id="pdfBox"></div>
 
-  <!-- ADMIN PANEL -->
   <div id="adminPanel" class="panel" style="display:none;">
     <h3>📊 Dashboard Analytics</h3>
-
     <p id="totalMurid">-</p>
     <p id="totalHadir">-</p>
-
-    <canvas id="chart" width="300" height="200"></canvas>
+    <canvas id="chart"></canvas>
   </div>
 
 </div>
 
 <script>
 
-const API = "https://script.google.com/macros/s/AKfycbx9oTSSZVCLRsDXGcy2xCaYSIT3uH09CAu-LJyvY1nVp6Zx6VUFNm7KhtlR9ukAJY9e/exec";
+const API = "https://script.google.com/macros/s/AKfycbwCJMlUi06UScIW0UlK5pds6sN5MQwtVAyxfnsfyBUmtBK5he-Lri3tLyHAPBkKUgQW/exec";
 
-let role = "";
-let qrScanner;
-let scanning = false;
+let role="", scanner, scanLock=false;
+
+/* ================= LOADING ================= */
+function showLoading(t){
+  overlay.style.display="flex";
+  loadingText.innerText=t;
+}
+function hideLoading(){
+  overlay.style.display="none";
+}
 
 /* ================= LOGIN ================= */
-function login() {
+function login(){
 
-  fetch(API, {
-    method: "POST",
-    body: JSON.stringify({
-      action: "login",
-      user: user.value,
-      pass: pass.value
+  showLoading("Login sistem...");
+
+  fetch(API,{
+    method:"POST",
+    body:JSON.stringify({
+      action:"login",
+      user:user.value,
+      pass:pass.value
     })
   })
-  .then(r => r.json())
-  .then(res => {
+  .then(r=>r.json())
+  .then(res=>{
 
-    if (!res.success) {
+    hideLoading();
+
+    if(!res.success){
       alert("Login gagal");
       return;
     }
 
-    role = res.role;
+    role=res.role;
+    loginBox.style.display="none";
+    dashboard.style.display="block";
 
-    loginBox.style.display = "none";
-    dashboard.style.display = "block";
+    if(role==="guru"||role==="admin"){
+      pdfBox.innerHTML=`<button onclick="generatePDF()">📄 Jana PDF</button>`;
+    }
 
-    setupUI();
+    if(role==="admin"){
+      adminPanel.style.display="block";
+      loadAnalytics();
+    }
+
     startQR();
-
-    if (role === "admin") loadAnalytics();
-
   });
-
 }
 
-/* ================= UI ================= */
-function setupUI() {
+/* ================= QR ================= */
+function startQR(){
+  scanner=new Html5Qrcode("reader");
 
-  if (role === "guru" || role === "admin") {
-    document.getElementById("pdfBox").innerHTML =
-      `<button onclick="generatePDF()">📄 Jana PDF Kehadiran</button>`;
-  }
+  scanner.start(
+    {facingMode:"environment"},
+    {fps:10,qrbox:250},
+    text=>{
 
-  if (role === "admin") {
-    document.getElementById("adminPanel").style.display = "block";
-  }
-}
+      if(scanLock)return;
+      scanLock=true;
 
-/* ================= QR SCAN ================= */
-function startQR() {
+      status.innerText="Scanning...";
 
-  qrScanner = new Html5Qrcode("reader");
-
-  qrScanner.start(
-    { facingMode: "environment" },
-    { fps: 10, qrbox: 250 },
-    (text) => {
-
-      if (scanning) return;
-      scanning = true;
-
-      document.getElementById("status").innerText = "🔄 Memproses...";
-
-      fetch(API, {
-        method: "POST",
-        body: JSON.stringify({ id: text })
+      fetch(API,{
+        method:"POST",
+        body:JSON.stringify({id:text})
       })
-      .then(r => r.json())
-      .then(res => {
+      .then(r=>r.json())
+      .then(res=>{
 
-        if (res.status === "duplicate") {
-          showResult("❌ " + res.message, "error");
-          resetScan();
+        if(res.status==="duplicate"){
+          showResult("❌ "+res.message,"error");
+          reset();
           return;
         }
 
-        showResult("✅ " + res.nama + " (" + res.kelas + ")", "success");
+        showResult("✅ "+res.nama+" ("+res.kelas+")","success");
 
-        // 🔊 SOUND
-        playBeep();
+        new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg").play();
+        if(navigator.vibrate) navigator.vibrate([200,100,200]);
 
-        // 📳 VIBRATE (mobile only)
-        vibratePhone();
-
-        resetScan();
-
-      })
-      .catch(() => {
-        showResult("❌ Error server", "error");
-        resetScan();
+        reset();
       });
-
     }
   );
 }
 
-/* ================= RESULT ================= */
-function showResult(msg, type) {
-  const r = document.getElementById("result");
-  r.innerText = msg;
-  r.className = type;
+function showResult(m,t){
+  result.innerText=m;
+  result.className=t;
 }
 
-/* ================= RESET SCAN ================= */
-function resetScan() {
-  setTimeout(() => {
-    scanning = false;
-    document.getElementById("status").innerText = "Sedia untuk scan...";
-  }, 1200);
-}
-
-/* ================= 🔊 BEEP SOUND ================= */
-function playBeep() {
-  try {
-    const audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
-    audio.play();
-  } catch (e) {}
-}
-
-/* ================= 📳 VIBRATION ================= */
-function vibratePhone() {
-  try {
-    if (navigator.vibrate) {
-      navigator.vibrate([200, 100, 200]); // pattern getar
-    }
-  } catch (e) {}
+function reset(){
+  setTimeout(()=>{
+    scanLock=false;
+    status.innerText="Sedia untuk scan...";
+  },1200);
 }
 
 /* ================= PDF ================= */
-function generatePDF() {
+function generatePDF(){
 
-  document.getElementById("pdfBox").innerHTML = "⏳ Menjana PDF...";
+  showLoading("Menjana PDF...");
 
-  fetch(API, {
-    method: "POST",
-    body: JSON.stringify({ action: "pdf" })
+  fetch(API,{
+    method:"POST",
+    body:JSON.stringify({action:"pdf"})
   })
-  .then(r => r.json())
-  .then(res => {
+  .then(r=>r.json())
+  .then(res=>{
 
-    document.getElementById("pdfBox").innerHTML =
+    hideLoading();
+
+    pdfBox.innerHTML =
       `<a href="${res.url}" target="_blank">📄 Buka PDF</a>`;
-
   });
-
 }
 
 /* ================= ANALYTICS ================= */
-function loadAnalytics() {
+function loadAnalytics(){
 
-  fetch(API, {
-    method: "POST",
-    body: JSON.stringify({ action: "analytics" })
+  fetch(API,{
+    method:"POST",
+    body:JSON.stringify({action:"analytics"})
   })
-  .then(r => r.json())
-  .then(res => {
+  .then(r=>r.json())
+  .then(res=>{
 
-    document.getElementById("totalMurid").innerText =
-      "Total Murid: " + res.totalMurid;
+    totalMurid.innerText="Total Murid: "+res.totalMurid;
+    totalHadir.innerText="Total Hadir: "+res.totalHadir;
 
-    document.getElementById("totalHadir").innerText =
-      "Total Kehadiran: " + res.totalHadir;
-
-    new Chart(document.getElementById("chart"), {
-      type: "bar",
-      data: {
-        labels: ["Hadir", "Tidak Hadir"],
-        datasets: [{
-          label: "Kehadiran",
-          data: [res.totalHadir, res.totalTidak]
-        }]
+    new Chart(chart,{
+      type:"bar",
+      data:{
+        labels:["Hadir","Tidak"],
+        datasets:[{data:[res.totalHadir,res.totalTidak]}]
       }
     });
 
   });
-
 }
 
 </script>
-
 </body>
 </html>
