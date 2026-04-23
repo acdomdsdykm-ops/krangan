@@ -121,6 +121,12 @@ let role = "";
 let qrScanner;
 
 /* ================= LOGIN ================= */
+const API = "https://script.google.com/macros/s/AKfycbzy5OrOwJ9Z00sVLvpg-b-jcX0hzHHkBZnUvHIgDCZk2MPxtmH8UnXsBJyQAVHuMh2Y/exec";
+
+let role = "";
+let qrScanner;
+
+/* ================= LOGIN ================= */
 function login() {
 
   const user = document.getElementById("user").value;
@@ -159,6 +165,116 @@ function login() {
   .catch(err => {
     console.error(err);
     alert("Server error / CORS issue");
+  });
+}
+
+/* ================= UI ================= */
+function setupUI() {
+
+  if (role === "guru" || role === "admin") {
+    document.getElementById("pdfBox").innerHTML =
+      `<button onclick="generatePDF()">📄 Jana PDF</button>`;
+  }
+
+  if (role === "admin") {
+    document.getElementById("adminPanel").style.display = "block";
+  }
+}
+
+/* ================= QR ================= */
+function startQR() {
+
+  Html5Qrcode.getCameras().then(devices => {
+
+    if (!devices.length) {
+      alert("Tiada kamera");
+      return;
+    }
+
+    qrScanner = new Html5Qrcode("reader");
+
+    qrScanner.start(
+      devices[0].id,
+      { fps: 10, qrbox: 250 },
+      text => {
+
+        fetch(API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: text })
+        })
+        .then(r => r.json())
+        .then(res => {
+
+          const result = document.getElementById("result");
+
+          if (res.status === "duplicate") {
+            result.innerHTML = "❌ " + res.message;
+            result.className = "error";
+            return;
+          }
+
+          result.innerHTML = "✅ " + res.nama + " (" + res.kelas + ")";
+          result.className = "success";
+
+        });
+
+      }
+    );
+
+  });
+
+}
+
+/* ================= PDF ================= */
+function generatePDF() {
+
+  fetch(API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "pdf" })
+  })
+  .then(r => r.json())
+  .then(res => {
+
+    if (!res.success) {
+      alert("PDF gagal");
+      return;
+    }
+
+    window.open(res.url, "_blank");
+
+  });
+}
+
+/* ================= ANALYTICS ================= */
+function loadAnalytics() {
+
+  fetch(API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "analytics" })
+  })
+  .then(r => r.json())
+  .then(res => {
+
+    document.getElementById("totalMurid").innerText =
+      "Total Murid: " + res.totalMurid;
+
+    document.getElementById("totalHadir").innerText =
+      "Total Kehadiran: " + res.totalHadir;
+
+    new Chart(document.getElementById("chart"), {
+      type: "bar",
+      data: {
+        labels: ["Hadir", "Tidak Hadir"],
+        datasets: [{
+          label: "Kehadiran",
+          data: [res.totalHadir, res.totalTidak]
+        }]
+      }
+    });
+
   });
 }
 
