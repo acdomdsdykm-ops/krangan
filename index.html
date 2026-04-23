@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sistem Kehadiran Sekolah</title>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+  font-family: Arial;
+  text-align: center;
+  background: #f5f5f5;
+}
+
+.logo {
+  width: 90px;
+  margin: 15px auto;
+  display: block;
+}
+
+.box {
+  display:none;
+  padding:10px;
+  opacity:0;
+  transform:translateY(20px);
+  transition:all 0.5s ease;
+}
+
+.box.active {
+  opacity:1;
+  transform:translateY(0);
+}
+
+#dashboard {
+  transform:scale(0.98);
+  transition:all 0.5s ease;
+}
+
+#dashboard.active {
+  transform:scale(1);
+}
+
+input, button {
+  padding:12px;
+  width:85%;
+  margin:6px;
+  border-radius:8px;
+  border:1px solid #ccc;
+}
+
+button {
+  background:#3498db;
+  color:white;
+  border:none;
+  cursor:pointer;
+}
+
+#result {
+  font-size:18px;
+  font-weight:bold;
+  margin-top:10px;
+}
+
+.success { color:green; }
+.error { color:red; }
+
+#reader {
+  width:300px;
+  margin:auto;
+}
+
+.panel {
+  margin-top:15px;
+  background:white;
+  padding:10px;
+  border-radius:10px;
+}
+</style>
+</head>
+
+<body>
+
+<img class="logo" src="https://drive.google.com/uc?export=view&id=1OepTolbuXdTtz1LDzDua892n-ECW8cBP">
+
+<h2>🏫 Sistem Kehadiran Sekolah</h2>
+
+<!-- LOGIN -->
+<div id="loginBox" class="box active" style="display:block;">
+  <input id="user" placeholder="Username"><br>
+  <input id="pass" type="password" placeholder="Password"><br>
+  <button onclick="login()">Login</button>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" class="box">
+
+  <h3>📷 QR Scan</h3>
+  <div id="reader"></div>
+  <p id="result"></p>
+
+  <div id="pdfBox"></div>
+
+  <div id="adminPanel" class="panel" style="display:none;">
+    <h3>📊 Dashboard Analytics</h3>
+    <p id="totalMurid">-</p>
+    <p id="totalHadir">-</p>
+    <canvas id="chart" width="300" height="200"></canvas>
+  </div>
+
+</div>
+
+<script>
+
+const API = "https://script.google.com/macros/s/AKfycbxMNBqAVp0oouG3WsNQwPcUOf3uvUvcKOBTu5UnFIScRwfovbdzgdzag7X6KVb5YQx9/exec";
+
+let role = "";
+let qrScanner;
+
+/* ================= LOGIN (FIXED GLOBAL) ================= */
+window.login = function () {
+
+  fetch(API, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      action: "login",
+      user: document.getElementById("user").value,
+      pass: document.getElementById("pass").value
+    })
+  })
+  .then(r => r.json())
+  .then(res => {
+
+    if (!res.success) {
+      alert("Login gagal");
+      return;
+    }
+
+    role = res.role;
+
+    document.getElementById("loginBox").style.display = "none";
+    document.getElementById("dashboard").style.display = "block";
+
+    setTimeout(() => {
+      document.getElementById("dashboard").classList.add("active");
+    }, 50);
+
+    setupUI();
+    startQR();
+
+    if (role === "admin") loadAnalytics();
+
+  })
+  .catch(err => alert("Error login: " + err));
+};
+
+/* ================= ROLE UI ================= */
+window.setupUI = function () {
+
+  if (role === "guru" || role === "admin") {
+    document.getElementById("pdfBox").innerHTML =
+      `<button onclick="generatePDF()">📄 Jana PDF Kehadiran</button>`;
+  }
+
+  if (role === "admin") {
+    document.getElementById("adminPanel").style.display = "block";
+  }
+
+};
+
+/* ================= QR SCAN (FIX SAFE) ================= */
+window.startQR = function () {
+
+  Html5Qrcode.getCameras().then(devices => {
+
+    if (!devices.length) {
+      alert("Kamera tidak dijumpai");
+      return;
+    }
+
+    qrScanner = new Html5Qrcode("reader");
+
+    qrScanner.start(
+      devices[0].id,
+      { fps: 10, qrbox: 250 },
+      (text) => {
+
+        fetch(API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: text })
+        })
+        .then(r => r.json())
+        .then(res => {
+
+          const result = document.getElementById("result");
+
+          if (res.status === "duplicate") {
+            result.innerHTML = "❌ " + res.message;
+            result.className = "error";
+            return;
+          }
+
+          result.innerHTML = "✅ " + res.nama + " (" + res.kelas + ")";
+          result.className = "success";
+
+        });
+
+      }
+    ).catch(err => {
+      alert("Kamera error: " + err);
+    });
+
+  });
+
+};
+
+/* ================= PDF (FIX RESPONSE SAFE) ================= */
+window.generatePDF = function () {
+
+  fetch(API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "pdf" })
+  })
+  .then(r => r.json())
+  .then(res => {
+
+    if (!res.success || !res.url) {
+      alert("PDF gagal dijana");
+      return;
+    }
+
+    window.open(res.url, "_blank");
+
+  })
+  .catch(err => alert("PDF error: " + err));
+
+};
+
+/* ================= ANALYTICS ================= */
+window.loadAnalytics = function () {
+
+  fetch(API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "analytics" })
+  })
+  .then(r => r.json())
+  .then(res => {
+
+    document.getElementById("totalMurid").innerText =
+      "Total Murid: " + res.totalMurid;
+
+    document.getElementById("totalHadir").innerText =
+      "Total Kehadiran: " + res.totalHadir;
+
+    new Chart(document.getElementById("chart"), {
+      type: "bar",
+      data: {
+        labels: ["Hadir", "Tidak Hadir"],
+        datasets: [{
+          label: "Kehadiran",
+          data: [res.totalHadir, res.totalTidak]
+        }]
+      }
+    });
+
+  });
+
+};
+
+</script>
+
+</body>
+</html>
