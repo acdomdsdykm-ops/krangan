@@ -149,20 +149,12 @@ function login() {
       return;
     }
 
-    role = data.role;
-
-    document.getElementById("loginBox").style.display = "none";
-    document.getElementById("dashboard").style.display = "block";
-    document.getElementById("dashboard").classList.add("active");
-
-    setupUI();
-    startQR();
-    if (role === "admin") loadAnalytics();
+    alert("Login berjaya");
 
   })
   .catch(err => {
     console.error(err);
-    alert("Server error / CORS issue");
+    alert("Server error");
   });
 }
 
