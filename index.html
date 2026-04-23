@@ -113,7 +113,7 @@ button {
 
 <script>
 
-const API = "https://script.google.com/macros/s/AKfycbz250YDvXV00Xk_qNQN339_HiW_6EtI-PnyyIoHflwz79JJlVxC8GVcV_3CgZvO5gC0/exec";
+const API = "https://script.google.com/macros/s/AKfycbwgikARk55893Xqhl3oyTZw_lAa2_48UPKMRaRBA398tY-6g-Ll-NCquMUxVio76X3Z/exec";
 
 let role = "";
 let qrScanner;
@@ -121,7 +121,7 @@ let qrScanner;
 /* ================= LOGIN (FIXED GLOBAL) ================= */
 window.login = function () {
 
-  fetch("https://script.google.com/macros/s/AKfycbz250YDvXV00Xk_qNQN339_HiW_6EtI-PnyyIoHflwz79JJlVxC8GVcV_3CgZvO5gC0/exec"){
+  fetch("https://script.google.com/macros/s/AKfycbwgikARk55893Xqhl3oyTZw_lAa2_48UPKMRaRBA398tY-6g-Ll-NCquMUxVio76X3Z/exec"){
   method: "POST",
   headers: {
     "Content-Type": "text/plain"
@@ -217,6 +217,10 @@ window.startQR = function () {
 
 /* ================= PDF (FIX RESPONSE SAFE) ================= */
 window.generatePDF = function () {
+
+  function login() {
+  console.log("login triggered");
+}
 
   fetch(API, {
     method: "POST",
