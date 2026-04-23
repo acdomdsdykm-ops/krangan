@@ -119,44 +119,38 @@ let role = "";
 let qrScanner;
 
 /* ================= LOGIN (FIXED GLOBAL) ================= */
-window.login = function () {
+function login() {
+
+  const user = document.getElementById("user").value;
+  const pass = document.getElementById("pass").value;
 
   fetch(API, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "text/plain"
     },
     body: JSON.stringify({
       action: "login",
-      user: document.getElementById("user").value,
-      pass: document.getElementById("pass").value
+      user,
+      pass
     })
   })
   .then(r => r.json())
-  .then(res => {
+  .then(data => {
 
-    if (!res.success) {
+    if (!data.success) {
       alert("Login gagal");
       return;
     }
 
-    role = res.role;
-
-    document.getElementById("loginBox").style.display = "none";
-    document.getElementById("dashboard").style.display = "block";
-
-    setTimeout(() => {
-      document.getElementById("dashboard").classList.add("active");
-    }, 50);
-
-    setupUI();
-    startQR();
-
-    if (role === "admin") loadAnalytics();
+    alert("Login berjaya");
 
   })
-  .catch(err => alert("Error login: " + err));
-};
+  .catch(err => {
+    console.error("Error login:", err);
+    alert("Tak boleh connect server");
+  });
+}
 
 /* ================= ROLE UI ================= */
 window.setupUI = function () {
