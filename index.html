@@ -120,16 +120,13 @@ const API = "https://script.google.com/macros/s/AKfycbzy5OrOwJ9Z00sVLvpg-b-jcX0h
 let role = "";
 let qrScanner;
 
-/* ================= LOGIN (FIXED GLOBAL) ================= */
-window.login = function () {
-
- function login() {
-  console.log("login function triggered");
+/* ================= LOGIN ================= */
+function login() {
 
   const user = document.getElementById("user").value;
   const pass = document.getElementById("pass").value;
 
-  fetch(WEB_APP_URL, {
+  fetch(API, {
     method: "POST",
     headers: {
       "Content-Type": "text/plain"
@@ -142,36 +139,49 @@ window.login = function () {
   })
   .then(r => r.json())
   .then(data => {
-    console.log(data);
-    alert(data.success ? "Login berjaya" : "Login gagal");
+
+    if (!data.success) {
+      alert("Login gagal");
+      return;
+    }
+
+    role = data.role;
+
+    document.getElementById("loginBox").style.display = "none";
+    document.getElementById("dashboard").style.display = "block";
+    document.getElementById("dashboard").classList.add("active");
+
+    setupUI();
+    startQR();
+    if (role === "admin") loadAnalytics();
+
   })
   .catch(err => {
     console.error(err);
-    alert("Server error");
+    alert("Server error / CORS issue");
   });
 }
 
-/* ================= ROLE UI ================= */
-window.setupUI = function () {
+/* ================= UI ================= */
+function setupUI() {
 
   if (role === "guru" || role === "admin") {
     document.getElementById("pdfBox").innerHTML =
-      `<button onclick="generatePDF()">📄 Jana PDF Kehadiran</button>`;
+      `<button onclick="generatePDF()">📄 Jana PDF</button>`;
   }
 
   if (role === "admin") {
     document.getElementById("adminPanel").style.display = "block";
   }
+}
 
-};
-
-/* ================= QR SCAN (FIX SAFE) ================= */
-window.startQR = function () {
+/* ================= QR ================= */
+function startQR() {
 
   Html5Qrcode.getCameras().then(devices => {
 
     if (!devices.length) {
-      alert("Kamera tidak dijumpai");
+      alert("Tiada kamera");
       return;
     }
 
@@ -180,7 +190,7 @@ window.startQR = function () {
     qrScanner.start(
       devices[0].id,
       { fps: 10, qrbox: 250 },
-      (text) => {
+      text => {
 
         fetch(API, {
           method: "POST",
@@ -204,20 +214,14 @@ window.startQR = function () {
         });
 
       }
-    ).catch(err => {
-      alert("Kamera error: " + err);
-    });
+    );
 
   });
 
-};
-
-/* ================= PDF (FIX RESPONSE SAFE) ================= */
-window.generatePDF = function () {
-
-  function login() {
-  console.log("login triggered");
 }
+
+/* ================= PDF ================= */
+function generatePDF() {
 
   fetch(API, {
     method: "POST",
@@ -227,20 +231,18 @@ window.generatePDF = function () {
   .then(r => r.json())
   .then(res => {
 
-    if (!res.success || !res.url) {
-      alert("PDF gagal dijana");
+    if (!res.success) {
+      alert("PDF gagal");
       return;
     }
 
     window.open(res.url, "_blank");
 
-  })
-  .catch(err => alert("PDF error: " + err));
-
-};
+  });
+}
 
 /* ================= ANALYTICS ================= */
-window.loadAnalytics = function () {
+function loadAnalytics() {
 
   fetch(API, {
     method: "POST",
@@ -268,8 +270,7 @@ window.loadAnalytics = function () {
     });
 
   });
-
-};
+}
 
 </script>
 
