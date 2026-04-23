@@ -78,6 +78,8 @@ button {
 
   <h3>📷 QR Scan</h3>
   <div id="reader"></div>
+
+  <p id="status">Sedia untuk scan...</p>
   <p id="result"></p>
 
   <div id="pdfBox"></div>
@@ -100,8 +102,9 @@ const API = "https://script.google.com/macros/s/AKfycbwYiOPORjC_Zw_e8tq6sWHGkVjP
 
 let role = "";
 let qrScanner;
+let scanning = false;
 
-/* LOGIN */
+/* ================= LOGIN ================= */
 function login() {
 
   fetch(API, {
@@ -134,7 +137,7 @@ function login() {
 
 }
 
-/* UI ROLE */
+/* ================= UI ================= */
 function setupUI() {
 
   if (role === "guru" || role === "admin") {
@@ -147,7 +150,7 @@ function setupUI() {
   }
 }
 
-/* QR */
+/* ================= QR SCAN ================= */
 function startQR() {
 
   qrScanner = new Html5Qrcode("reader");
@@ -157,6 +160,11 @@ function startQR() {
     { fps: 10, qrbox: 250 },
     (text) => {
 
+      if (scanning) return;
+      scanning = true;
+
+      document.getElementById("status").innerText = "🔄 Memproses...";
+
       fetch(API, {
         method: "POST",
         body: JSON.stringify({ id: text })
@@ -165,22 +173,67 @@ function startQR() {
       .then(res => {
 
         if (res.status === "duplicate") {
-          result.innerHTML = "❌ " + res.message;
-          result.className = "error";
+          showResult("❌ " + res.message, "error");
+          resetScan();
           return;
         }
 
-        result.innerHTML = "✅ " + res.nama + " (" + res.kelas + ")";
-        result.className = "success";
+        showResult("✅ " + res.nama + " (" + res.kelas + ")", "success");
 
+        // 🔊 SOUND
+        playBeep();
+
+        // 📳 VIBRATE (mobile only)
+        vibratePhone();
+
+        resetScan();
+
+      })
+      .catch(() => {
+        showResult("❌ Error server", "error");
+        resetScan();
       });
 
     }
   );
 }
 
-/* PDF */
+/* ================= RESULT ================= */
+function showResult(msg, type) {
+  const r = document.getElementById("result");
+  r.innerText = msg;
+  r.className = type;
+}
+
+/* ================= RESET SCAN ================= */
+function resetScan() {
+  setTimeout(() => {
+    scanning = false;
+    document.getElementById("status").innerText = "Sedia untuk scan...";
+  }, 1200);
+}
+
+/* ================= 🔊 BEEP SOUND ================= */
+function playBeep() {
+  try {
+    const audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+    audio.play();
+  } catch (e) {}
+}
+
+/* ================= 📳 VIBRATION ================= */
+function vibratePhone() {
+  try {
+    if (navigator.vibrate) {
+      navigator.vibrate([200, 100, 200]); // pattern getar
+    }
+  } catch (e) {}
+}
+
+/* ================= PDF ================= */
 function generatePDF() {
+
+  document.getElementById("pdfBox").innerHTML = "⏳ Menjana PDF...";
 
   fetch(API, {
     method: "POST",
@@ -188,13 +241,15 @@ function generatePDF() {
   })
   .then(r => r.json())
   .then(res => {
-    alert("PDF siap: " + res.url);
-    window.open(res.url, "_blank");
+
+    document.getElementById("pdfBox").innerHTML =
+      `<a href="${res.url}" target="_blank">📄 Buka PDF</a>`;
+
   });
 
 }
 
-/* ANALYTICS */
+/* ================= ANALYTICS ================= */
 function loadAnalytics() {
 
   fetch(API, {
