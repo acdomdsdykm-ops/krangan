@@ -5,70 +5,61 @@
 <title>Sistem Kehadiran Sekolah</title>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
-<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body{
-  font-family:Arial;
-  margin:0;
-  text-align:center;
-  background:#f5f5f5;
+body {
+  font-family: Arial;
+  text-align: center;
+  background: #f5f5f5;
 }
 
-/* LOGIN */
-#loginPage{
-  position:fixed;
-  width:100%;
-  height:100%;
-  background:url("https://images.unsplash.com/photo-1441974231531-c6227db76b6e") no-repeat center;
-  background-size:cover;
-  display:flex;
-  align-items:center;
-  justify-content:center;
+.logo {
+  width: 90px;
+  margin: 15px auto;
+  display: block;
 }
 
-.login-box{
-  background:rgba(0,0,0,0.65);
-  padding:25px;
-  border-radius:15px;
-  color:white;
-  width:80%;
-  animation:fadeIn .6s ease;
-}
+.box { display:none; padding:10px; }
 
-@keyframes fadeIn{
-  from{transform:scale(.8);opacity:0;}
-  to{transform:scale(1);opacity:1;}
-}
-
-input,button{
-  width:90%;
+input, button {
   padding:12px;
+  width:85%;
   margin:6px;
   border-radius:8px;
-  border:none;
+  border:1px solid #ccc;
 }
 
-button{
-  background:#2ecc71;
+button {
+  background:#3498db;
   color:white;
+  border:none;
   cursor:pointer;
 }
 
-/* APP */
-#app{display:none;}
-
-.logo{width:80px;margin:10px auto;display:block;}
-
-#reader{
-  width:300px;
-  margin:auto;
-  border-radius:10px;
-  overflow:hidden;
+#result {
+  font-size:18px;
+  font-weight:bold;
+  margin-top:10px;
 }
 
-/* POPUP */
-.popup{
+.success { color:green; }
+.error { color:red; }
+
+#reader {
+  width:300px;
+  margin:auto;
+}
+
+.panel {
+  margin-top:15px;
+  background:white;
+  padding:10px;
+  border-radius:10px;
+}
+
+/* ================= LOADING ================= */
+.overlay {
   position:fixed;
   top:0;left:0;
   width:100%;
@@ -77,126 +68,123 @@ button{
   display:none;
   align-items:center;
   justify-content:center;
-}
-
-.popup-card{
-  background:rgba(255,255,255,0.15);
-  backdrop-filter:blur(10px);
-  padding:25px;
-  border-radius:15px;
-  color:white;
-  animation:pop .3s ease;
-}
-
-@keyframes pop{
-  from{transform:scale(.5);opacity:0;}
-  to{transform:scale(1);opacity:1;}
-}
-
-.popup-name{
-  font-size:22px;
-  color:#00ff9d;
-  font-weight:bold;
-}
-
-/* LOADING */
-#loading{
-  display:none;
-  position:fixed;
-  width:100%;
-  height:100%;
-  background:rgba(0,0,0,0.6);
-  color:white;
-  align-items:center;
-  justify-content:center;
   flex-direction:column;
+  color:white;
   z-index:9999;
 }
 
-.spinner{
-  width:45px;
-  height:45px;
+.spinner {
+  width:50px;
+  height:50px;
   border:5px solid #ccc;
-  border-top:5px solid #2ecc71;
+  border-top:5px solid #3498db;
   border-radius:50%;
   animation:spin 1s linear infinite;
+  margin-bottom:10px;
 }
 
-@keyframes spin{
-  100%{transform:rotate(360deg);}
-}
-
-/* PDF BUTTON */
-#pdfBtn{
-  margin-top:15px;
-  background:#3498db;
+@keyframes spin {
+  0% {transform:rotate(0);}
+  100% {transform:rotate(360deg);}
 }
 </style>
 </head>
 
 <body>
 
-<!-- LOGIN -->
-<div id="loginPage">
-  <div class="login-box">
-    <h2>Login Sistem</h2>
-    <input id="user" placeholder="Username">
-    <input id="pass" type="password" placeholder="Password">
-    <button onclick="login()">Login</button>
-  </div>
-</div>
-
-<!-- APP -->
-<div id="app">
-
 <img class="logo" src="logo.png">
-<h2>🏫 Sistem Kehadiran</h2>
-
-<div id="reader"></div>
-
-<button id="pdfBtn" onclick="generatePDF()">📄 Print PDF</button>
-
-</div>
-
-<!-- POPUP -->
-<div id="popup" class="popup">
-  <div class="popup-card">
-    <div>✔ Sudah Direkodkan</div>
-    <div id="popName" class="popup-name"></div>
-    <div id="popClass"></div>
-  </div>
-</div>
+<h2>🏫 Sistem Kehadiran Sekolah</h2>
 
 <!-- LOADING -->
-<div id="loading">
+<div id="overlay" class="overlay">
   <div class="spinner"></div>
   <div id="loadingText">Loading...</div>
 </div>
 
+<!-- LOGIN -->
+<div id="loginBox" class="box" style="display:block;">
+  <input id="user" placeholder="Username"><br>
+  <input id="pass" type="password" placeholder="Password"><br>
+  <button onclick="login()">Login</button>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" class="box">
+
+  <h3>📷 QR Scan</h3>
+  <div id="reader"></div>
+
+  <p id="status">Sedia untuk scan...</p>
+  <p id="result"></p>
+
+  <div id="pdfBox"></div>
+
+  <div id="adminPanel" class="panel" style="display:none;">
+    <h3>📊 Dashboard Analytics</h3>
+    <p id="totalMurid">-</p>
+    <p id="totalHadir">-</p>
+    <canvas id="chart"></canvas>
+  </div>
+
+</div>
+
 <script>
 
-const API="https://script.google.com/macros/s/AKfycbxNdX1dMcjA7tHLlavqEmsUPBgYfgYwsOQ0swOfk5zrSxKiXRpvCwjm5QqEYv9gMFpA/exec";
+const API = "https://script.google.com/macros/s/AKfycbx-RIZhg2_-jPanZ9dbporP9kTZcXBrYzY-DzlgTn07hcNRa3dxs4e6wApi0czlpor6/exec";
 
-let scanner;
-let lock=false;
+let role="", scanner, scanLock=false;
+
+/* ================= LOADING ================= */
+function showLoading(t){
+  overlay.style.display="flex";
+  loadingText.innerText=t;
+}
+function hideLoading(){
+  overlay.style.display="none";
+}
 
 /* ================= LOGIN ================= */
 function login(){
 
-  loading.style.display="flex";
-  loadingText.innerText="Login...";
+  showLoading("Login sistem...");
 
-  setTimeout(()=>{
-    loading.style.display="none";
-    loginPage.style.display="none";
-    app.style.display="block";
+  fetch(API,{
+    method:"POST",
+    body:JSON.stringify({
+      action:"login",
+      user:user.value,
+      pass:pass.value
+    })
+  })
+  .then(r=>r.json())
+  .then(res=>{
+
+    hideLoading();
+
+    if(!res.success){
+      alert("Login gagal");
+      return;
+    }
+
+    role=res.role;
+    loginBox.style.display="none";
+    dashboard.style.display="block";
+
+    if(role==="guru"||role==="admin"){
+      pdfBox.innerHTML=`<button onclick="generatePDF()">📄 Jana PDF</button>`;
+    }
+
+    if(role==="admin"){
+      adminPanel.style.display="block";
+      loadAnalytics();
+    }
+
     startQR();
-  },800);
+  });
 }
 
 /* ================= QR ================= */
 function startQR(){
-
   scanner=new Html5Qrcode("reader");
 
   scanner.start(
@@ -204,8 +192,10 @@ function startQR(){
     {fps:10,qrbox:250},
     text=>{
 
-      if(lock)return;
-      lock=true;
+      if(scanLock)return;
+      scanLock=true;
+
+      status.innerText="Scanning...";
 
       fetch(API,{
         method:"POST",
@@ -214,48 +204,39 @@ function startQR(){
       .then(r=>r.json())
       .then(res=>{
 
-        // 🔥 FIX UNDEFINED
-        let nama = res.nama || "Tidak Dikenali";
-        let kelas = res.kelas || "-";
-
         if(res.status==="duplicate"){
-          showPopup(nama,kelas);
-          vibrateError();
+          showResult("❌ "+res.message,"error");
           reset();
           return;
         }
 
-        showPopup(nama,kelas);
+        showResult("✅ "+res.nama+" ("+res.kelas+")","success");
 
-        confettiEffect();
-        beepSuccess();
-        vibrateSuccess();
+        new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg").play();
+        if(navigator.vibrate) navigator.vibrate([200,100,200]);
 
         reset();
       });
-
     }
   );
 }
 
-/* ================= POPUP ================= */
-function showPopup(name,kelas){
-
-  popName.innerText=name;
-  popClass.innerText="Kelas: "+kelas;
-
-  popup.style.display="flex";
-
-  setTimeout(()=>{
-    popup.style.display="none";
-  },2000);
+function showResult(m,t){
+  result.innerText=m;
+  result.className=t;
 }
 
-/* ================= PDF FIX (100% STABLE) ================= */
+function reset(){
+  setTimeout(()=>{
+    scanLock=false;
+    status.innerText="Sedia untuk scan...";
+  },1200);
+}
+
+/* ================= PDF ================= */
 function generatePDF(){
 
-  loading.style.display="flex";
-  loadingText.innerText="Menjana PDF...";
+  showLoading("Menjana PDF...");
 
   fetch(API,{
     method:"POST",
@@ -264,50 +245,37 @@ function generatePDF(){
   .then(r=>r.json())
   .then(res=>{
 
-    loading.style.display="none";
+    hideLoading();
 
-    if(res && res.success && res.url){
-      window.open(res.url,"_blank");
-    }else{
-      alert("PDF gagal dijana");
-    }
-
-  })
-  .catch(()=>{
-    loading.style.display="none";
-    alert("Server error PDF");
+    pdfBox.innerHTML =
+      `<a href="${res.url}" target="_blank">📄 Buka PDF</a>`;
   });
 }
 
-/* ================= EFFECTS ================= */
-function confettiEffect(){
-  try{
-    confetti({
-      particleCount:120,
-      spread:70,
-      origin:{y:0.6}
+/* ================= ANALYTICS ================= */
+function loadAnalytics(){
+
+  fetch(API,{
+    method:"POST",
+    body:JSON.stringify({action:"analytics"})
+  })
+  .then(r=>r.json())
+  .then(res=>{
+
+    totalMurid.innerText="Total Murid: "+res.totalMurid;
+    totalHadir.innerText="Total Hadir: "+res.totalHadir;
+
+    new Chart(chart,{
+      type:"bar",
+      data:{
+        labels:["Hadir","Tidak"],
+        datasets:[{data:[res.totalHadir,res.totalTidak]}]
+      }
     });
-  }catch(e){}
-}
 
-function beepSuccess(){
-  new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg").play();
-}
-
-function vibrateSuccess(){
-  if(navigator.vibrate) navigator.vibrate([100,50,200]);
-}
-
-function vibrateError(){
-  if(navigator.vibrate) navigator.vibrate([300,100,300]);
-}
-
-/* RESET */
-function reset(){
-  setTimeout(()=>lock=false,1200);
+  });
 }
 
 </script>
-
 </body>
 </html>
