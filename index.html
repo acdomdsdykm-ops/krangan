@@ -135,9 +135,12 @@ button {
 
 <body>
 
+<img class="logo" src="${logo}">
+<div id="loginBox" class="box" style="display:block;">
+  <h2 class="school-name">SEKOLAH MENENGAH KEBANGSAAN CONTOH</h2>
+  <p class="school-sub">Jalan Sekolah, 93000 Kuching, Sarawak</p>
 
-<img src="${logo}" style="width:80px;">
- 
+</div>
 <h2>🏫 Sistem Kehadiran Sekolah</h2>
 
 <!-- LOADING -->
@@ -159,7 +162,7 @@ button {
   <h3>📷 QR Scan</h3>
   <div id="reader"></div>
 
-  <p id="status">Sila scan QRCode murid.</p>
+  <p id="status">Sedia untuk scan...</p>
   <p id="result"></p>
 
   <div id="pdfBox"></div>
@@ -316,7 +319,7 @@ function showResult(m,t){
 function reset(){
   setTimeout(()=>{
     scanLock=false;
-    status.innerText="Sila scan QRCode murid.";
+    status.innerText="Sedia untuk scan...";
   },1200);
 }
 
