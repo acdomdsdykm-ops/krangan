@@ -2,7 +2,7 @@
 <html lang="ms">
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sistem Kehadiran Sekolah Premium</title>
+<title>Sistem Kehadiran Sekolah</title>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -12,14 +12,31 @@
 body {
   font-family: Arial;
   text-align: center;
-  background: #f5f5f5;
+  margin:0;
+  background:#f5f5f5;
 }
 
-.logo {
-  width: 90px;
-  margin: 15px auto;
-  display: block;
+/* ================= LOGIN BACKGROUND ================= */
+#loginBox {
+  background: url('https://images.unsplash.com/photo-1501785888041-af3ef285b470') no-repeat center center;
+  background-size: cover;
+  padding:30px;
+  height:100vh;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
 }
+
+/* overlay login */
+.login-overlay{
+  background: rgba(0,0,0,0.55);
+  padding:20px;
+  border-radius:12px;
+  color:white;
+}
+
+/* ================= GENERAL ================= */
+.logo { width:90px; margin:15px auto; display:block; }
 
 .box { display:none; padding:10px; }
 
@@ -42,51 +59,43 @@ button {
   font-size:18px;
   font-weight:bold;
   margin-top:10px;
+  transition:0.3s;
 }
 
-.success { color:green; }
+.success { color:green; animation:pop .4s; }
 .error { color:red; }
+
+@keyframes pop {
+  0%{transform:scale(0.8);}
+  100%{transform:scale(1);}
+}
 
 #reader {
   width:300px;
   margin:auto;
-  border-radius:12px;
+  border-radius:10px;
+  overflow:hidden;
 }
 
-/* SCAN FLASH */
+/* flashing scanning */
 .scanning {
-  border: 3px solid #00ff66;
-  animation: flash 0.8s infinite;
-  box-shadow: 0 0 20px #00ff66;
+  animation:flash 0.4s infinite;
 }
-
 @keyframes flash {
-  0% { opacity:1; }
-  50% { opacity:0.4; }
-  100% { opacity:1; }
+  0%{box-shadow:0 0 5px #00f;}
+  50%{box-shadow:0 0 20px #00f;}
+  100%{box-shadow:0 0 5px #00f;}
 }
 
-/* SUCCESS ANIMATION */
-.success-anim {
-  color: #00b300;
-  font-weight: bold;
-  animation: pop 0.4s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+/* panel */
+.panel {
+  margin-top:15px;
+  background:white;
+  padding:10px;
+  border-radius:10px;
 }
 
-.success-anim::before {
-  content: "✔";
-  font-size: 20px;
-}
-
-@keyframes pop {
-  0% { transform: scale(0.7); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-/* LOADING */
+/* loading */
 .overlay {
   position:fixed;
   top:0;left:0;
@@ -108,20 +117,20 @@ button {
   border-top:5px solid #3498db;
   border-radius:50%;
   animation:spin 1s linear infinite;
-  margin-bottom:10px;
 }
 
 @keyframes spin {
-  0% {transform:rotate(0);}
-  100% {transform:rotate(360deg);}
+  0%{transform:rotate(0);}
+  100%{transform:rotate(360deg);}
 }
 
-.panel {
-  margin-top:15px;
-  background:white;
-  padding:10px;
-  border-radius:10px;
+/* checkmark */
+.checkmark {
+  font-size:40px;
+  color:green;
+  animation:pop 0.4s;
 }
+
 </style>
 </head>
 
@@ -130,16 +139,20 @@ button {
 <img class="logo" src="logo.png">
 <h2>🏫 Sistem Kehadiran Sekolah</h2>
 
+<!-- LOADING -->
 <div id="overlay" class="overlay">
   <div class="spinner"></div>
   <div id="loadingText">Loading...</div>
 </div>
 
 <!-- LOGIN -->
-<div id="loginBox" class="box" style="display:block;">
-  <input id="user" placeholder="Username"><br>
-  <input id="pass" type="password" placeholder="Password"><br>
-  <button onclick="login()">Login</button>
+<div id="loginBox">
+  <div class="login-overlay">
+    <h2>Login Sistem</h2>
+    <input id="user" placeholder="Username"><br>
+    <input id="pass" type="password" placeholder="Password"><br>
+    <button onclick="login()">Login</button>
+  </div>
 </div>
 
 <!-- DASHBOARD -->
@@ -148,11 +161,14 @@ button {
   <h3>📷 QR Scan</h3>
 
   <div id="reader"></div>
-
-  <p id="status">Sedia untuk scan...</p>
+  <p id="status">Sedang memproses, sila tunggu...</p>
   <p id="result"></p>
 
   <div id="pdfBox"></div>
+
+  <button onclick="loadRanking()">🏆 Ranking Pelajar</button>
+
+  <div id="rankingBox" class="panel"></div>
 
   <div id="adminPanel" class="panel" style="display:none;">
     <h3>📊 Dashboard Analytics</h3>
@@ -165,33 +181,23 @@ button {
 
 <script>
 
-const API = "https://script.google.com/macros/s/AKfycbwCJMlUi06UScIW0UlK5pds6sN5MQwtVAyxfnsfyBUmtBK5he-Lri3tLyHAPBkKUgQW/exec";
+const API="https://script.google.com/macros/s/AKfycbxEIeOKtQ2IHP-6BVSflwUwC_-RZGBwYXytLXPEMIW45Wfno88HZ4KJRXA5clbkgtfr/exec";
 
-let role="", scanner, scanLock=false;
+let role="",scanner,lock=false;
 
-/* SOUND */
-const soundSuccess = new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg");
-const soundError = new Audio("https://actions.google.com/sounds/v1/alarms/buzz_er.ogg");
-const soundDuplicate = new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg");
-
-/* CONFETTI */
-function fireConfetti(){
-  confetti({ particleCount:120, spread:80, origin:{y:0.6} });
+/* ================= LOADING ================= */
+function showLoading(t){
+  overlay.style.display="flex";
+  loadingText.innerText=t;
+}
+function hideLoading(){
+  overlay.style.display="none";
 }
 
-/* VIBRATION */
-function vibrateSuccess(){ if(navigator.vibrate) navigator.vibrate([200,100,200]); }
-function vibrateError(){ if(navigator.vibrate) navigator.vibrate([400]); }
-function vibrateDuplicate(){ if(navigator.vibrate) navigator.vibrate([100,50,100,50,100]); }
-
-/* LOADING */
-function showLoading(t){ overlay.style.display="flex"; loadingText.innerText=t; }
-function hideLoading(){ overlay.style.display="none"; }
-
-/* LOGIN */
+/* ================= LOGIN ================= */
 function login(){
 
-  showLoading("Login sistem...");
+  showLoading("Logging in...");
 
   fetch(API,{
     method:"POST",
@@ -228,7 +234,7 @@ function login(){
   });
 }
 
-/* QR SCAN */
+/* ================= QR ================= */
 function startQR(){
 
   scanner=new Html5Qrcode("reader");
@@ -238,11 +244,11 @@ function startQR(){
     {fps:10,qrbox:250},
     text=>{
 
-      if(scanLock) return;
-      scanLock=true;
+      if(lock)return;
+      lock=true;
 
-      document.getElementById("reader").classList.add("scanning");
       status.innerText="Sedang memproses, sila tunggu...";
+      document.getElementById("reader").classList.add("scanning");
 
       fetch(API,{
         method:"POST",
@@ -251,52 +257,69 @@ function startQR(){
       .then(r=>r.json())
       .then(res=>{
 
+        document.getElementById("reader").classList.remove("scanning");
+
         if(res.status==="duplicate"){
-          showResult("❌ "+res.message,"error");
-          soundDuplicate.play();
-          vibrateDuplicate();
+          showResult("❌ Sudah scan hari ini","error");
+          vibrate("error");
+          beep();
           reset();
           return;
         }
 
-        /* SUCCESS */
-        status.innerHTML = `<span class="success-anim">Sudah direkodkan</span>`;
-        showResult("✅ "+res.nama+" ("+res.kelas+")","success");
+        showResult("Sudah direkodkan","success");
 
-        soundSuccess.play();
-        fireConfetti();
-        vibrateSuccess();
+        successEffect();
+        beepSuccess();
+        vibrate("success");
 
-        reset();
-      })
-      .catch(()=>{
-        showResult("❌ Error server","error");
-        soundError.play();
-        vibrateError();
         reset();
       });
     }
   );
 }
 
-/* RESULT */
-function showResult(m,t){
-  result.innerText=m;
-  result.className=t;
+/* ================= EFFECTS ================= */
+function successEffect(){
+  confetti({particleCount:120,spread:70});
 }
 
-/* RESET */
+function beep(){
+  new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg").play();
+}
+function beepSuccess(){
+  new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg").play();
+}
+
+function vibrate(type){
+  if(!navigator.vibrate)return;
+
+  if(type==="success") navigator.vibrate([100,50,100,50,200]);
+  else navigator.vibrate([300,100,300]);
+}
+
+/* ================= RESULT ================= */
+function showResult(m,t){
+  result.innerHTML = (t==="success") ? "✔ " + m : m;
+  result.className=t;
+
+  if(t==="success"){
+    result.innerHTML=`<div class="checkmark">✔</div>`+m;
+  }
+}
+
+/* ================= RESET ================= */
 function reset(){
   setTimeout(()=>{
-    scanLock=false;
-    status.innerText="Sedia untuk scan...";
-    document.getElementById("reader").classList.remove("scanning");
+    lock=false;
+    status.innerText="Sedang memproses, sila tunggu...";
   },1200);
 }
 
-/* PDF */
+/* ================= PDF ================= */
 function generatePDF(){
-  showLoading("Menjana PDF...");
+
+  showLoading("Generating PDF...");
 
   fetch(API,{
     method:"POST",
@@ -309,14 +332,38 @@ function generatePDF(){
   });
 }
 
-/* ANALYTICS */
+/* ================= RANKING ================= */
+function loadRanking(){
+
+  rankingBox.innerHTML="Loading ranking...";
+
+  fetch(API,{
+    method:"POST",
+    body:JSON.stringify({action:"ranking"})
+  })
+  .then(r=>r.json())
+  .then(res=>{
+
+    let html="<h3>🏆 Top Pelajar</h3>";
+
+    res.forEach((x,i)=>{
+      html+=`${i+1}. ${x.nama} - ${x.hadir} hari<br>`;
+    });
+
+    rankingBox.innerHTML=html;
+  });
+}
+
+/* ================= ANALYTICS ================= */
 function loadAnalytics(){
+
   fetch(API,{
     method:"POST",
     body:JSON.stringify({action:"analytics"})
   })
   .then(r=>r.json())
   .then(res=>{
+
     totalMurid.innerText="Total Murid: "+res.totalMurid;
     totalHadir.innerText="Total Hadir: "+res.totalHadir;
 
