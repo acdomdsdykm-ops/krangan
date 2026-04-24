@@ -2,7 +2,7 @@
 <html lang="ms">
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sistem Kehadiran Sekolah</title>
+<title>Sistem Kehadiran Sekolah Premium</title>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -53,11 +53,17 @@ button {
   border-radius:12px;
 }
 
-.panel {
-  margin-top:15px;
-  background:white;
-  padding:10px;
-  border-radius:10px;
+/* SCAN FLASH */
+.scanning {
+  border: 3px solid #00ff66;
+  animation: flash 0.8s infinite;
+  box-shadow: 0 0 20px #00ff66;
+}
+
+@keyframes flash {
+  0% { opacity:1; }
+  50% { opacity:0.4; }
+  100% { opacity:1; }
 }
 
 /* SUCCESS ANIMATION */
@@ -73,16 +79,10 @@ button {
 .success-anim::before {
   content: "✔";
   font-size: 20px;
-  animation: check 0.4s ease;
 }
 
 @keyframes pop {
   0% { transform: scale(0.7); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-@keyframes check {
-  0% { transform: scale(0); opacity: 0; }
   100% { transform: scale(1); opacity: 1; }
 }
 
@@ -115,6 +115,13 @@ button {
   0% {transform:rotate(0);}
   100% {transform:rotate(360deg);}
 }
+
+.panel {
+  margin-top:15px;
+  background:white;
+  padding:10px;
+  border-radius:10px;
+}
 </style>
 </head>
 
@@ -139,6 +146,7 @@ button {
 <div id="dashboard" class="box">
 
   <h3>📷 QR Scan</h3>
+
   <div id="reader"></div>
 
   <p id="status">Sedia untuk scan...</p>
@@ -233,6 +241,7 @@ function startQR(){
       if(scanLock) return;
       scanLock=true;
 
+      document.getElementById("reader").classList.add("scanning");
       status.innerText="Sedang memproses, sila tunggu...";
 
       fetch(API,{
@@ -281,6 +290,7 @@ function reset(){
   setTimeout(()=>{
     scanLock=false;
     status.innerText="Sedia untuk scan...";
+    document.getElementById("reader").classList.remove("scanning");
   },1200);
 }
 
