@@ -2,7 +2,7 @@
 <html lang="ms">
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sistem Kehadiran Sekolah</title>
+<title>Sistem Kehadiran</title>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -24,20 +24,23 @@ body{
   overflow:hidden;
 }
 
-/* FLASH SCAN ANIMATION */
+/* scanning effect */
 .scanning{
-  animation:flash 0.35s infinite;
+  animation:flash 0.4s infinite;
 }
+
 @keyframes flash{
   0%{box-shadow:0 0 5px #00f;}
-  50%{box-shadow:0 0 25px #00f;}
+  50%{box-shadow:0 0 20px #00f;}
   100%{box-shadow:0 0 5px #00f;}
 }
 
-/* POPUP */
+/* ================= POPUP TRANSPARENT ================= */
 .popup{
   position:fixed;
-  inset:0;
+  top:0;left:0;
+  width:100%;
+  height:100%;
   background:rgba(0,0,0,0.6);
   display:none;
   align-items:center;
@@ -47,35 +50,34 @@ body{
 
 .popup-card{
   background:rgba(255,255,255,0.15);
-  backdrop-filter:blur(12px);
+  backdrop-filter:blur(10px);
   padding:25px;
-  border-radius:16px;
+  border-radius:15px;
   color:white;
-  min-width:260px;
-  animation:pop .25s ease;
+  min-width:250px;
+  box-shadow:0 0 20px rgba(0,0,0,0.3);
+  animation:pop .3s ease;
 }
 
 @keyframes pop{
-  from{transform:scale(0.6);opacity:0;}
+  from{transform:scale(0.5);opacity:0;}
   to{transform:scale(1);opacity:1;}
 }
 
-.name{
+.popup-title{
+  font-size:18px;
+  margin-bottom:10px;
+}
+
+.popup-name{
   font-size:22px;
   font-weight:bold;
   color:#00ff9d;
 }
 
-.class{
+.popup-class{
   font-size:16px;
   margin-top:5px;
-}
-
-/* CHECK ANIMATION */
-.check{
-  font-size:40px;
-  animation:pop 0.3s ease;
-  color:#00ff9d;
 }
 </style>
 </head>
@@ -86,20 +88,15 @@ body{
 <h2>🏫 Sistem Kehadiran</h2>
 
 <div id="reader"></div>
-<p id="status">Sedia untuk scan...</p>
 
 <!-- POPUP -->
 <div id="popup" class="popup">
   <div class="popup-card">
-    <div class="check">✔</div>
-    <div id="pName" class="name"></div>
-    <div id="pClass" class="class"></div>
+    <div class="popup-title">✔ Sudah Direkodkan</div>
+    <div id="popName" class="popup-name"></div>
+    <div id="popClass" class="popup-class"></div>
   </div>
 </div>
-
-<!-- AUDIO FIX (preload trick supaya tak block) -->
-<audio id="beepOk" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
-<audio id="beepError" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
 <script>
 
@@ -108,21 +105,20 @@ const API="https://script.google.com/macros/s/AKfycbz-iETRExzQH4rVbScZ-V29_qGzuC
 let scanner;
 let lock=false;
 
-/* START CAMERA */
+/* START QR */
 function startQR(){
 
   scanner=new Html5Qrcode("reader");
 
   scanner.start(
-    { facingMode:"environment" },
-    { fps:10, qrbox:250 },
-    (text)=>{
+    {facingMode:"environment"},
+    {fps:10,qrbox:250},
+    text=>{
 
       if(lock) return;
       lock=true;
 
       document.getElementById("reader").classList.add("scanning");
-      document.getElementById("status").innerText="Sedang memproses...";
 
       fetch(API,{
         method:"POST",
@@ -135,65 +131,59 @@ function startQR(){
 
         if(res.status==="duplicate"){
           showPopup("Sudah scan hari ini","-");
-          playError();
           vibrateError();
+          beepError();
           reset();
           return;
         }
 
-        // STATUS DISPLAY
-        document.getElementById("status").innerText =
-          "👤 " + res.nama + " | 🏫 " + res.kelas;
-
         showPopup(res.nama,res.kelas);
 
-        playSuccess();
+        launchConfetti();
+        beepSuccess();
         vibrateSuccess();
-        fireConfetti();
 
         reset();
       });
+
     }
   );
 }
 
-/* POPUP */
+/* ================= POPUP ================= */
 function showPopup(name,kelas){
 
-  document.getElementById("pName").innerText=name;
-  document.getElementById("pClass").innerText="Kelas: "+kelas;
+  popName.innerText = name;
+  popClass.innerText = "Kelas: " + kelas;
 
-  const popup=document.getElementById("popup");
   popup.style.display="flex";
 
   setTimeout(()=>{
     popup.style.display="none";
-  },1700);
+  },2000);
 }
 
-/* 🔊 SOUND FIX (force play user gesture safe) */
-function playSuccess(){
-  const a=document.getElementById("beepOk");
-  a.currentTime=0;
-  a.play().catch(()=>{});
-}
-
-function playError(){
-  const a=document.getElementById("beepError");
-  a.currentTime=0;
-  a.play().catch(()=>{});
-}
-
-/* 💥 CONFETTI FIX */
-function fireConfetti(){
+/* ================= EFFECTS ================= */
+function launchConfetti(){
   confetti({
     particleCount:120,
-    spread:80,
+    spread:70,
     origin:{y:0.6}
   });
 }
 
-/* 📳 VIBRATION */
+/* SOUND */
+function beepSuccess(){
+  const audio = new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg");
+  audio.play();
+}
+
+function beepError(){
+  const audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+  audio.play();
+}
+
+/* VIBRATION */
 function vibrateSuccess(){
   if(navigator.vibrate) navigator.vibrate([100,50,200]);
 }
@@ -206,7 +196,6 @@ function vibrateError(){
 function reset(){
   setTimeout(()=>{
     lock=false;
-    document.getElementById("status").innerText="Sedia untuk scan...";
   },1200);
 }
 
