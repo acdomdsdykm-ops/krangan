@@ -2,7 +2,7 @@
 <html lang="ms">
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sistem Kehadiran</title>
+<title>Sistem Kehadiran Sekolah</title>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -15,7 +15,7 @@ body{
   background:#f5f5f5;
 }
 
-/* ================= LOGIN BACKGROUND ================= */
+/* LOGIN */
 #loginPage{
   position:fixed;
   width:100%;
@@ -27,19 +27,12 @@ body{
   justify-content:center;
 }
 
-/* LOGIN ANIMATION BOX */
 .login-box{
   background:rgba(0,0,0,0.65);
   padding:25px;
   border-radius:15px;
   color:white;
   width:80%;
-  animation:fadeIn 0.6s ease;
-}
-
-@keyframes fadeIn{
-  from{transform:scale(0.8);opacity:0;}
-  to{transform:scale(1);opacity:1;}
 }
 
 input,button{
@@ -53,11 +46,6 @@ input,button{
 button{
   background:#2ecc71;
   color:white;
-  cursor:pointer;
-  transition:0.2s;
-}
-button:active{
-  transform:scale(0.95);
 }
 
 /* APP */
@@ -70,16 +58,6 @@ button:active{
   margin:auto;
   border-radius:10px;
   overflow:hidden;
-}
-
-/* SCANNING */
-.scanning{
-  animation:flash 0.4s infinite;
-}
-@keyframes flash{
-  0%{box-shadow:0 0 5px #00f;}
-  50%{box-shadow:0 0 20px #00f;}
-  100%{box-shadow:0 0 5px #00f;}
 }
 
 /* POPUP */
@@ -102,26 +80,18 @@ button:active{
   color:white;
 }
 
-.popup-name{
-  font-size:22px;
-  color:#00ff9d;
-  font-weight:bold;
-}
-
-/* ================= LOADING ================= */
+/* LOADING */
 #loading{
   display:none;
   position:fixed;
   width:100%;
   height:100%;
-  top:0;
-  left:0;
   background:rgba(0,0,0,0.6);
   color:white;
   align-items:center;
   justify-content:center;
   flex-direction:column;
-  font-size:18px;
+  z-index:9999;
 }
 
 .spinner{
@@ -131,17 +101,15 @@ button:active{
   border-top:5px solid #2ecc71;
   border-radius:50%;
   animation:spin 1s linear infinite;
-  margin-bottom:10px;
 }
 
 @keyframes spin{
-  0%{transform:rotate(0);}
   100%{transform:rotate(360deg);}
 }
 
-/* PDF BUTTON */
+/* BUTTON PDF */
 #pdfBtn{
-  margin-top:10px;
+  margin-top:15px;
   background:#3498db;
 }
 </style>
@@ -152,7 +120,7 @@ button:active{
 <!-- LOGIN -->
 <div id="loginPage">
   <div class="login-box">
-    <h2>Login Sistem</h2>
+    <h2>Login</h2>
     <input id="user" placeholder="Username">
     <input id="pass" type="password" placeholder="Password">
     <button onclick="login()">Login</button>
@@ -175,7 +143,7 @@ button:active{
 <div id="popup" class="popup">
   <div class="popup-card">
     <div>✔ Sudah Direkodkan</div>
-    <div id="popName" class="popup-name"></div>
+    <div id="popName"></div>
   </div>
 </div>
 
@@ -187,22 +155,22 @@ button:active{
 
 <script>
 
-const API="https://script.google.com/macros/s/AKfycbwlbc8FIvA0gktVDOfPpb-2V4xi-NQSkvBEgnZlU2E1g6tbcYFYhjCholJlQsZR28rv/exec";
+const API="https://script.google.com/macros/s/AKfycbxgbEI_GVEccfpNvzs-3ycmTnnSdUaXeWKvcKmtT-lwvwU9d7wJookCHiXLcvy0BS4/exec";
 
 let scanner;
 let lock=false;
 
 /* ================= LOGIN ================= */
 function login(){
-
-  document.getElementById("loading").style.display="flex";
+  loading.style.display="flex";
+  loadingText.innerText="Login...";
 
   setTimeout(()=>{
-    document.getElementById("loading").style.display="none";
-    document.getElementById("loginPage").style.display="none";
-    document.getElementById("app").style.display="block";
+    loading.style.display="none";
+    loginPage.style.display="none";
+    app.style.display="block";
     startQR();
-  },900);
+  },800);
 }
 
 /* ================= QR ================= */
@@ -215,7 +183,7 @@ function startQR(){
     {fps:10,qrbox:250},
     text=>{
 
-      if(lock) return;
+      if(lock)return;
       lock=true;
 
       fetch(API,{
@@ -225,14 +193,10 @@ function startQR(){
       .then(r=>r.json())
       .then(res=>{
 
-        if(res.status==="duplicate"){
-          showPopup("Sudah scan hari ini");
-          reset();
-          return;
-        }
+        showPopup(res.nama || "OK");
 
-        showPopup(res.nama);
         confetti();
+
         reset();
       });
 
@@ -250,43 +214,59 @@ function showPopup(name){
   },2000);
 }
 
-/* ================= FIXED PDF ================= */
+/* ================= FIX PDF (FULL STABLE) ================= */
 function generatePDF(){
 
-  document.getElementById("loading").style.display="flex";
+  loading.style.display="flex";
   loadingText.innerText="Menjana PDF...";
 
-  fetch(API+"?action=pdf")
+  // 🔥 FIX UTAMA: guna POST (bukan GET)
+  fetch(API,{
+    method:"POST",
+    body:JSON.stringify({action:"pdf"})
+  })
   .then(r=>r.json())
   .then(res=>{
 
-    document.getElementById("loading").style.display="none";
+    loading.style.display="none";
 
-    if(res.success && res.url){
+    // 🔥 DEBUG SAFE
+    console.log("PDF RESPONSE:",res);
+
+    if(res && res.success && res.url){
+
+      // auto open
       window.open(res.url,"_blank");
-    }else{
-      alert("PDF gagal dijana");
+
+    } else {
+
+      alert("PDF gagal dijana. Semak Apps Script / Drive permission");
+
     }
 
   })
-  .catch(()=>{
-    document.getElementById("loading").style.display="none";
-    alert("Server error PDF");
-  });
-}
+  .catch(err=>{
 
-/* CONFETTI */
-function confetti(){
-  confettiJS({
-    particleCount:120,
-    spread:70,
-    origin:{y:0.6}
+    loading.style.display="none";
+    console.log(err);
+    alert("Server error PDF");
+
   });
 }
 
 /* RESET */
 function reset(){
   setTimeout(()=>lock=false,1200);
+}
+
+/* CONFETTI */
+function confetti(){
+  try{
+    confettiJS({
+      particleCount:100,
+      spread:70
+    });
+  }catch(e){}
 }
 
 </script>
