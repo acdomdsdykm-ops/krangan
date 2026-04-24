@@ -17,8 +17,6 @@ body{
 
 .logo{width:90px;margin:15px auto;display:block;}
 
-.box{display:none;}
-
 #reader{
   width:300px;
   margin:auto;
@@ -26,7 +24,17 @@ body{
   overflow:hidden;
 }
 
-/* ================= POPUP TRANSPARENT ================= */
+/* scanning effect */
+.scanning{
+  animation:flash 0.4s infinite;
+}
+@keyframes flash{
+  0%{box-shadow:0 0 5px #00f;}
+  50%{box-shadow:0 0 20px #00f;}
+  100%{box-shadow:0 0 5px #00f;}
+}
+
+/* ================= POPUP ================= */
 .popup{
   position:fixed;
   top:0;left:0;
@@ -46,12 +54,11 @@ body{
   border-radius:15px;
   color:white;
   min-width:250px;
-  box-shadow:0 0 20px rgba(0,0,0,0.3);
-  animation:pop .3s ease;
+  animation:pop .25s ease;
 }
 
 @keyframes pop{
-  from{transform:scale(0.5);opacity:0;}
+  from{transform:scale(0.6);opacity:0;}
   to{transform:scale(1);opacity:1;}
 }
 
@@ -68,18 +75,12 @@ body{
 
 .popup-class{
   font-size:16px;
-  margin-top:5px;
-  color:#fff;
 }
 
-/* scanning effect */
-.scanning{
-  animation:flash 0.4s infinite;
-}
-@keyframes flash{
-  0%{box-shadow:0 0 5px #00f;}
-  50%{box-shadow:0 0 20px #00f;}
-  100%{box-shadow:0 0 5px #00f;}
+/* status */
+#status{
+  margin-top:10px;
+  font-weight:bold;
 }
 </style>
 </head>
@@ -92,12 +93,12 @@ body{
 <div id="reader"></div>
 <p id="status">Sedia untuk scan...</p>
 
-<!-- ================= POPUP ================= -->
+<!-- POPUP -->
 <div id="popup" class="popup">
   <div class="popup-card">
     <div class="popup-title">✔ Sudah Direkodkan</div>
-    <div id="popName" class="popup-name">Nama</div>
-    <div id="popClass" class="popup-class">Kelas</div>
+    <div id="popName" class="popup-name"></div>
+    <div id="popClass" class="popup-class"></div>
   </div>
 </div>
 
@@ -111,17 +112,18 @@ let lock=false;
 /* START QR */
 function startQR(){
 
-  scanner=new Html5Qrcode("reader");
+  scanner = new Html5Qrcode("reader");
 
   scanner.start(
-    {facingMode:"environment"},
-    {fps:10,qrbox:250},
-    text=>{
+    { facingMode:"environment" },
+    { fps:10, qrbox:250 },
+    (text)=>{
 
       if(lock) return;
       lock=true;
 
       document.getElementById("reader").classList.add("scanning");
+      document.getElementById("status").innerText = "Sedang scan...";
 
       fetch(API,{
         method:"POST",
@@ -140,9 +142,14 @@ function startQR(){
           return;
         }
 
+        // ✔ PAPAR NAMA & KELAS
+        document.getElementById("status").innerText =
+          "👤 " + res.nama + " | 🏫 " + res.kelas;
+
         showPopup(res.nama,res.kelas);
 
         confetti();
+
         beepSuccess();
         vibrateSuccess();
 
@@ -152,22 +159,25 @@ function startQR(){
   );
 }
 
-/* ================= POPUP ================= */
+/* POPUP */
 function showPopup(name,kelas){
 
-  popName.innerText = name;
-  popClass.innerText = "Kelas: " + kelas;
+  document.getElementById("popName").innerText = name;
+  document.getElementById("popClass").innerText = "Kelas: " + kelas;
 
-  popup.style.display="flex";
+  document.getElementById("popup").style.display="flex";
 
   setTimeout(()=>{
-    popup.style.display="none";
-  },2000);
+    document.getElementById("popup").style.display="none";
+  },1800);
 }
 
-/* ================= EFFECTS ================= */
+/* EFFECTS */
 function confetti(){
-  confettiJS({particleCount:100,spread:70});
+  window.confetti({
+    particleCount:100,
+    spread:70
+  });
 }
 
 function beep(){
@@ -190,7 +200,7 @@ function vibrateError(){
 function reset(){
   setTimeout(()=>{
     lock=false;
-    status.innerText="Sedia untuk scan...";
+    document.getElementById("status").innerText="Sedia untuk scan...";
   },1200);
 }
 
