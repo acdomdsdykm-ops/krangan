@@ -5,70 +5,81 @@
 <title>Sistem Kehadiran Sekolah</title>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
 <style>
-body {
-  font-family: Arial;
-  text-align: center;
+body{
+  font-family:Arial;
+  text-align:center;
   margin:0;
   background:#f5f5f5;
 }
 
-.logo { width:90px; margin:15px auto; display:block; }
+.logo{width:90px;margin:15px auto;display:block;}
 
-.box { display:none; padding:10px; }
+.box{display:none;}
 
-input, button {
-  padding:12px;
-  width:85%;
-  margin:6px;
-  border-radius:8px;
-  border:1px solid #ccc;
-}
-
-button {
-  background:#3498db;
-  color:white;
-  border:none;
-  cursor:pointer;
-}
-
-#result {
-  font-size:18px;
-  font-weight:bold;
-  margin-top:10px;
-}
-
-.success { color:green; }
-.error { color:red; }
-
-#reader {
+#reader{
   width:300px;
   margin:auto;
   border-radius:10px;
   overflow:hidden;
 }
 
-.scanning {
+/* ================= POPUP TRANSPARENT ================= */
+.popup{
+  position:fixed;
+  top:0;left:0;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,0.6);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:9999;
+}
+
+.popup-card{
+  background:rgba(255,255,255,0.15);
+  backdrop-filter:blur(10px);
+  padding:25px;
+  border-radius:15px;
+  color:white;
+  min-width:250px;
+  box-shadow:0 0 20px rgba(0,0,0,0.3);
+  animation:pop .3s ease;
+}
+
+@keyframes pop{
+  from{transform:scale(0.5);opacity:0;}
+  to{transform:scale(1);opacity:1;}
+}
+
+.popup-title{
+  font-size:18px;
+  margin-bottom:10px;
+}
+
+.popup-name{
+  font-size:22px;
+  font-weight:bold;
+  color:#00ff9d;
+}
+
+.popup-class{
+  font-size:16px;
+  margin-top:5px;
+  color:#fff;
+}
+
+/* scanning effect */
+.scanning{
   animation:flash 0.4s infinite;
 }
-@keyframes flash {
+@keyframes flash{
   0%{box-shadow:0 0 5px #00f;}
   50%{box-shadow:0 0 20px #00f;}
   100%{box-shadow:0 0 5px #00f;}
-}
-
-.checkmark {
-  font-size:40px;
-  color:green;
-  animation:pop 0.3s;
-}
-
-@keyframes pop {
-  0%{transform:scale(0.5);}
-  100%{transform:scale(1);}
 }
 </style>
 </head>
@@ -76,85 +87,41 @@ button {
 <body>
 
 <img class="logo" src="logo.png">
-<h2>🏫 Sistem Kehadiran Sekolah</h2>
+<h2>🏫 Sistem Kehadiran</h2>
 
-<!-- LOGIN -->
-<div id="loginBox" class="box" style="display:block;">
-  <h2>Login</h2>
-  <input id="user" placeholder="Username"><br>
-  <input id="pass" type="password" placeholder="Password"><br>
-  <button onclick="login()">Login</button>
-</div>
+<div id="reader"></div>
+<p id="status">Sedia untuk scan...</p>
 
-<!-- DASHBOARD -->
-<div id="dashboard" class="box">
-
-  <h3>📷 QR Scan</h3>
-
-  <div id="reader"></div>
-
-  <!-- STATUS UTAMA -->
-  <p id="status">Sedia untuk scan...</p>
-
-  <!-- STATUS HASIL -->
-  <p id="result"></p>
-
-  <button onclick="loadRanking()">🏆 Ranking</button>
-  <div id="rankingBox"></div>
-
+<!-- ================= POPUP ================= -->
+<div id="popup" class="popup">
+  <div class="popup-card">
+    <div class="popup-title">✔ Sudah Direkodkan</div>
+    <div id="popName" class="popup-name">Nama</div>
+    <div id="popClass" class="popup-class">Kelas</div>
+  </div>
 </div>
 
 <script>
 
-const API = "https://script.google.com/macros/s/AKfycbz-iETRExzQH4rVbScZ-V29_qGzuC60bJlv1vDsb69h6UAgJLR0m_Wzuu1NgJwY_ZVu/exec";
+const API="https://script.google.com/macros/s/AKfycbz-iETRExzQH4rVbScZ-V29_qGzuC60bJlv1vDsb69h6UAgJLR0m_Wzuu1NgJwY_ZVu/exec";
 
 let scanner;
-let lock = false;
+let lock=false;
 
-/* LOGIN */
-function login(){
-
-  fetch(API,{
-    method:"POST",
-    body:JSON.stringify({
-      action:"login",
-      user:user.value,
-      pass:pass.value
-    })
-  })
-  .then(r=>r.json())
-  .then(res=>{
-
-    if(!res.success){
-      alert("Login gagal");
-      return;
-    }
-
-    loginBox.style.display="none";
-    dashboard.style.display="block";
-
-    startQR();
-  });
-}
-
-/* QR START */
+/* START QR */
 function startQR(){
 
-  scanner = new Html5Qrcode("reader");
+  scanner=new Html5Qrcode("reader");
 
   scanner.start(
-    { facingMode:"environment" },
-    { fps:10, qrbox:250 },
-    (text)=>{
+    {facingMode:"environment"},
+    {fps:10,qrbox:250},
+    text=>{
 
       if(lock) return;
-      lock = true;
+      lock=true;
 
       document.getElementById("reader").classList.add("scanning");
-
-      // RESET RESULT setiap scan baru
-      result.innerHTML = "";
-      result.className = "";
 
       fetch(API,{
         method:"POST",
@@ -165,25 +132,17 @@ function startQR(){
 
         document.getElementById("reader").classList.remove("scanning");
 
-        /* ❗ DUPLICATE */
-        if(res.status === "duplicate"){
-
-          status.innerText = "❌ Sudah direkodkan hari ini";
-          showResult("Sudah direkodkan","error");
-
+        if(res.status==="duplicate"){
+          showPopup("Sudah scan hari ini","-");
           vibrateError();
           beep();
-
           reset();
           return;
         }
 
-        /* ✔ SUCCESS - PAPAR NAMA & KELAS */
-        status.innerText = `👤 ${res.nama} | 🏫 ${res.kelas}`;
+        showPopup(res.nama,res.kelas);
 
-        showResult("Sudah direkodkan","success");
-
-        confettiEffect();
+        confetti();
         beepSuccess();
         vibrateSuccess();
 
@@ -193,25 +152,22 @@ function startQR(){
   );
 }
 
-/* RESULT */
-function showResult(text,type){
-  result.innerHTML = `<div class="checkmark">✔</div>${text}`;
-  result.className = type;
-}
+/* ================= POPUP ================= */
+function showPopup(name,kelas){
 
-/* RESET FLOW */
-function reset(){
+  popName.innerText = name;
+  popClass.innerText = "Kelas: " + kelas;
+
+  popup.style.display="flex";
+
   setTimeout(()=>{
-    lock = false;
-
-    // 🔥 penting: reset balik status default selepas beberapa saat
-    status.innerText = "Sedia untuk scan...";
-  },1500);
+    popup.style.display="none";
+  },2000);
 }
 
-/* EFFECTS */
-function confettiEffect(){
-  confetti({particleCount:120,spread:80});
+/* ================= EFFECTS ================= */
+function confetti(){
+  confettiJS({particleCount:100,spread:70});
 }
 
 function beep(){
@@ -230,25 +186,15 @@ function vibrateError(){
   if(navigator.vibrate) navigator.vibrate([300,100,300]);
 }
 
-/* RANKING (optional) */
-function loadRanking(){
-
-  fetch(API,{
-    method:"POST",
-    body:JSON.stringify({action:"ranking"})
-  })
-  .then(r=>r.json())
-  .then(res=>{
-
-    let html="<h3>🏆 Ranking</h3>";
-
-    res.forEach((x,i)=>{
-      html += `${i+1}. ${x.nama} - ${x.hadir}<br>`;
-    });
-
-    rankingBox.innerHTML = html;
-  });
+/* RESET */
+function reset(){
+  setTimeout(()=>{
+    lock=false;
+    status.innerText="Sedia untuk scan...";
+  },1200);
 }
+
+startQR();
 
 </script>
 
