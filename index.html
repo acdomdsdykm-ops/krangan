@@ -20,6 +20,25 @@ body {
   display: block;
 }
 
+.school-title {
+  margin: 5px 0;
+  font-size: 20px;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.school-sub {
+  margin: 0;
+  font-size: 12px;
+  color: #777;
+}
+
+.system-title {
+  margin-top: 10px;
+  font-size: 16px;
+  color: #555;
+}
+
 .box { display:none; padding:10px; }
 
 input, button {
@@ -135,7 +154,11 @@ button {
 
 <body>
 
-<img class="logo" src="${logo}">
+<img class="logo" src="logo.png">
+
+<h2 class="school-title">SEKOLAH KEBANGSAAN KRANGAN</h2>
+<p class="school-sub">Jalan Sekolah, 93000 Kuching, Sarawak</p>
+
 <h2>🏫 Sistem Kehadiran Sekolah</h2>
 
 <!-- LOADING -->
@@ -157,7 +180,7 @@ button {
   <h3>📷 QR Scan</h3>
   <div id="reader"></div>
 
-  <p id="status">Sedia untuk scan...</p>
+  <p id="status">Sila scan QRCode murid.</p>
   <p id="result"></p>
 
   <div id="pdfBox"></div>
@@ -180,7 +203,7 @@ button {
 
 <script>
 
-const API = "https://script.google.com/macros/s/AKfycbzr89AckqIxa4x3J_R14ErO4lTMuoe0bPGDXIgaiBVg0zgl-UlLIX6ZTzylCItWtJHDoA/exec";
+const API = "https://script.google.com/macros/s/AKfycbzJ4uak-u43uyXfIsml1kP7JdqO_OyfxjccdwijkczFX7zOeR9FljSa5YzHXWecfmltUQ/exec";
 
 let role="", scanner, scanLock=false;
 
@@ -314,7 +337,7 @@ function showResult(m,t){
 function reset(){
   setTimeout(()=>{
     scanLock=false;
-    status.innerText="Sedia untuk scan...";
+    status.innerText="Sila scan QRCode murid.";
   },1200);
 }
 
