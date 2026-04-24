@@ -53,7 +53,6 @@ button {
   transition:0.3s;
 }
 
-/* 🔥 FLASH EFFECT SEMASA SCAN */
 .scanning {
   border: 3px solid #00ff66;
   animation: flash 0.8s infinite;
@@ -73,7 +72,7 @@ button {
   border-radius:10px;
 }
 
-/* ================= LOADING ================= */
+/* LOADING */
 .overlay {
   position:fixed;
   top:0;left:0;
@@ -110,27 +109,24 @@ button {
 <img class="logo" src="logo.png">
 <h2>🏫 Sistem Kehadiran Sekolah</h2>
 
-<!-- LOADING -->
 <div id="overlay" class="overlay">
   <div class="spinner"></div>
   <div id="loadingText">Loading...</div>
 </div>
 
-<!-- LOGIN -->
 <div id="loginBox" class="box" style="display:block;">
   <input id="user" placeholder="Username"><br>
   <input id="pass" type="password" placeholder="Password"><br>
   <button onclick="login()">Login</button>
 </div>
 
-<!-- DASHBOARD -->
 <div id="dashboard" class="box">
 
   <h3>📷 QR Scan</h3>
 
   <div id="reader"></div>
 
-  <!-- STATUS SCAN -->
+  <!-- STATUS TEXT (UPDATED LOGIC) -->
   <p id="status">Sedia untuk scan...</p>
   <p id="result"></p>
 
@@ -151,7 +147,7 @@ const API = "https://script.google.com/macros/s/AKfycbwCJMlUi06UScIW0UlK5pds6sN5
 
 let role="", scanner, scanLock=false;
 
-/* ================= LOADING ================= */
+/* LOADING */
 function showLoading(t){
   overlay.style.display="flex";
   loadingText.innerText=t;
@@ -160,7 +156,7 @@ function hideLoading(){
   overlay.style.display="none";
 }
 
-/* ================= LOGIN ================= */
+/* LOGIN */
 function login(){
 
   showLoading("Login sistem...");
@@ -200,7 +196,7 @@ function login(){
   });
 }
 
-/* ================= QR SCAN ================= */
+/* QR SCAN */
 function startQR(){
   scanner=new Html5Qrcode("reader");
 
@@ -212,13 +208,12 @@ function startQR(){
       if(scanLock) return;
       scanLock=true;
 
-      /* 🔥 FLASH + STATUS */
       document.getElementById("reader").classList.add("scanning");
-      status.innerText = "🔄 Memproses, sila tunggu...";
 
-      /* 🔊 BEEP START SCAN */
-      let beep = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
-      beep.play();
+      /* 🔄 STATUS SCANNING */
+      status.innerText = "Sedang memproses, sila tunggu...";
+
+      new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg").play();
 
       fetch(API,{
         method:"POST",
@@ -233,9 +228,11 @@ function startQR(){
           return;
         }
 
+        /* ✅ SUCCESS STATUS */
+        status.innerText = "Sudah direkodkan";
+
         showResult("✅ "+res.nama+" ("+res.kelas+")","success");
 
-        /* success sound */
         new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg").play();
 
         if(navigator.vibrate)
@@ -247,13 +244,13 @@ function startQR(){
   );
 }
 
-/* ================= RESULT ================= */
+/* RESULT */
 function showResult(m,t){
   result.innerText=m;
   result.className=t;
 }
 
-/* ================= RESET ================= */
+/* RESET */
 function resetScan(){
   setTimeout(()=>{
     scanLock=false;
@@ -262,7 +259,7 @@ function resetScan(){
   },1200);
 }
 
-/* ================= PDF ================= */
+/* PDF */
 function generatePDF(){
 
   showLoading("Menjana PDF...");
@@ -279,7 +276,7 @@ function generatePDF(){
   });
 }
 
-/* ================= ANALYTICS ================= */
+/* ANALYTICS */
 function loadAnalytics(){
 
   fetch(API,{
