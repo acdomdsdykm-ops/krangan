@@ -49,6 +49,21 @@ button {
 #reader {
   width:300px;
   margin:auto;
+  border-radius:12px;
+  transition:0.3s;
+}
+
+/* 🔥 FLASH EFFECT SEMASA SCAN */
+.scanning {
+  border: 3px solid #00ff66;
+  animation: flash 0.8s infinite;
+  box-shadow: 0 0 20px #00ff66;
+}
+
+@keyframes flash {
+  0% { opacity:1; }
+  50% { opacity:0.4; }
+  100% { opacity:1; }
 }
 
 .panel {
@@ -112,8 +127,10 @@ button {
 <div id="dashboard" class="box">
 
   <h3>📷 QR Scan</h3>
+
   <div id="reader"></div>
 
+  <!-- STATUS SCAN -->
   <p id="status">Sedia untuk scan...</p>
   <p id="result"></p>
 
@@ -183,7 +200,7 @@ function login(){
   });
 }
 
-/* ================= QR ================= */
+/* ================= QR SCAN ================= */
 function startQR(){
   scanner=new Html5Qrcode("reader");
 
@@ -192,10 +209,16 @@ function startQR(){
     {fps:10,qrbox:250},
     text=>{
 
-      if(scanLock)return;
+      if(scanLock) return;
       scanLock=true;
 
-      status.innerText="Scanning...";
+      /* 🔥 FLASH + STATUS */
+      document.getElementById("reader").classList.add("scanning");
+      status.innerText = "🔄 Memproses, sila tunggu...";
+
+      /* 🔊 BEEP START SCAN */
+      let beep = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+      beep.play();
 
       fetch(API,{
         method:"POST",
@@ -206,30 +229,36 @@ function startQR(){
 
         if(res.status==="duplicate"){
           showResult("❌ "+res.message,"error");
-          reset();
+          resetScan();
           return;
         }
 
         showResult("✅ "+res.nama+" ("+res.kelas+")","success");
 
-        new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg").play();
-        if(navigator.vibrate) navigator.vibrate([200,100,200]);
+        /* success sound */
+        new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg").play();
 
-        reset();
+        if(navigator.vibrate)
+          navigator.vibrate([200,100,200]);
+
+        resetScan();
       });
     }
   );
 }
 
+/* ================= RESULT ================= */
 function showResult(m,t){
   result.innerText=m;
   result.className=t;
 }
 
-function reset(){
+/* ================= RESET ================= */
+function resetScan(){
   setTimeout(()=>{
     scanLock=false;
     status.innerText="Sedia untuk scan...";
+    document.getElementById("reader").classList.remove("scanning");
   },1200);
 }
 
@@ -244,9 +273,7 @@ function generatePDF(){
   })
   .then(r=>r.json())
   .then(res=>{
-
     hideLoading();
-
     pdfBox.innerHTML =
       `<a href="${res.url}" target="_blank">📄 Buka PDF</a>`;
   });
