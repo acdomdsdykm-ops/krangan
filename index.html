@@ -39,7 +39,6 @@ button {
   font-size:18px;
   font-weight:bold;
   margin-top:10px;
-  transition:0.3s;
 }
 
 .success { color:green; }
@@ -52,14 +51,6 @@ button {
   overflow:hidden;
 }
 
-.panel {
-  margin-top:15px;
-  background:white;
-  padding:10px;
-  border-radius:10px;
-}
-
-/* scanning flash */
 .scanning {
   animation:flash 0.4s infinite;
 }
@@ -69,7 +60,6 @@ button {
   100%{box-shadow:0 0 5px #00f;}
 }
 
-/* check */
 .checkmark {
   font-size:40px;
   color:green;
@@ -79,17 +69,6 @@ button {
 @keyframes pop {
   0%{transform:scale(0.5);}
   100%{transform:scale(1);}
-}
-
-/* login bg */
-#loginBox{
-  background:linear-gradient(rgba(0,0,0,0.6),rgba(0,0,0,0.6)),
-  url('https://images.unsplash.com/photo-1501785888041-af3ef285b470') center/cover;
-  height:100vh;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  color:white;
 }
 </style>
 </head>
@@ -101,12 +80,10 @@ button {
 
 <!-- LOGIN -->
 <div id="loginBox" class="box" style="display:block;">
-  <div>
-    <h2>Login</h2>
-    <input id="user" placeholder="Username"><br>
-    <input id="pass" type="password" placeholder="Password"><br>
-    <button onclick="login()">Login</button>
-  </div>
+  <h2>Login</h2>
+  <input id="user" placeholder="Username"><br>
+  <input id="pass" type="password" placeholder="Password"><br>
+  <button onclick="login()">Login</button>
 </div>
 
 <!-- DASHBOARD -->
@@ -116,22 +93,14 @@ button {
 
   <div id="reader"></div>
 
-  <!-- 🔥 INI YANG DITUKAR (dynamic status) -->
+  <!-- STATUS UTAMA -->
   <p id="status">Sedia untuk scan...</p>
 
+  <!-- STATUS HASIL -->
   <p id="result"></p>
 
-  <div id="pdfBox"></div>
-
-  <button onclick="loadRanking()">🏆 Ranking Pelajar</button>
-  <div id="rankingBox" class="panel"></div>
-
-  <div id="adminPanel" class="panel" style="display:none;">
-    <h3>📊 Dashboard</h3>
-    <p id="totalMurid"></p>
-    <p id="totalHadir"></p>
-    <canvas id="chart"></canvas>
-  </div>
+  <button onclick="loadRanking()">🏆 Ranking</button>
+  <div id="rankingBox"></div>
 
 </div>
 
@@ -139,7 +108,8 @@ button {
 
 const API = "https://script.google.com/macros/s/AKfycbz-iETRExzQH4rVbScZ-V29_qGzuC60bJlv1vDsb69h6UAgJLR0m_Wzuu1NgJwY_ZVu/exec";
 
-let role="", scanner, lock=false;
+let scanner;
+let lock = false;
 
 /* LOGIN */
 function login(){
@@ -160,7 +130,6 @@ function login(){
       return;
     }
 
-    role=res.role;
     loginBox.style.display="none";
     dashboard.style.display="block";
 
@@ -168,7 +137,7 @@ function login(){
   });
 }
 
-/* QR SCAN */
+/* QR START */
 function startQR(){
 
   scanner = new Html5Qrcode("reader");
@@ -183,6 +152,10 @@ function startQR(){
 
       document.getElementById("reader").classList.add("scanning");
 
+      // RESET RESULT setiap scan baru
+      result.innerHTML = "";
+      result.className = "";
+
       fetch(API,{
         method:"POST",
         body:JSON.stringify({id:text})
@@ -192,22 +165,25 @@ function startQR(){
 
         document.getElementById("reader").classList.remove("scanning");
 
-        // ❗ STATUS DIGANTI NAMA + KELAS
-        if(res.status !== "duplicate"){
-          status.innerText = `👤 ${res.nama} | 🏫 ${res.kelas}`;
-        }
-
+        /* ❗ DUPLICATE */
         if(res.status === "duplicate"){
-          status.innerText = "❌ Sudah scan hari ini";
+
+          status.innerText = "❌ Sudah direkodkan hari ini";
+          showResult("Sudah direkodkan","error");
+
           vibrateError();
           beep();
+
           reset();
           return;
         }
 
+        /* ✔ SUCCESS - PAPAR NAMA & KELAS */
+        status.innerText = `👤 ${res.nama} | 🏫 ${res.kelas}`;
+
         showResult("Sudah direkodkan","success");
 
-        confetti();
+        confettiEffect();
         beepSuccess();
         vibrateSuccess();
 
@@ -218,14 +194,24 @@ function startQR(){
 }
 
 /* RESULT */
-function showResult(msg,type){
-  result.innerHTML = `<div class="checkmark">✔</div>${msg}`;
+function showResult(text,type){
+  result.innerHTML = `<div class="checkmark">✔</div>${text}`;
   result.className = type;
 }
 
+/* RESET FLOW */
+function reset(){
+  setTimeout(()=>{
+    lock = false;
+
+    // 🔥 penting: reset balik status default selepas beberapa saat
+    status.innerText = "Sedia untuk scan...";
+  },1500);
+}
+
 /* EFFECTS */
-function confetti(){
-  window.confetti({particleCount:100,spread:70});
+function confettiEffect(){
+  confetti({particleCount:120,spread:80});
 }
 
 function beep(){
@@ -244,15 +230,7 @@ function vibrateError(){
   if(navigator.vibrate) navigator.vibrate([300,100,300]);
 }
 
-/* RESET */
-function reset(){
-  setTimeout(()=>{
-    lock=false;
-    status.innerText="Sedia untuk scan...";
-  },1200);
-}
-
-/* RANKING */
+/* RANKING (optional) */
 function loadRanking(){
 
   fetch(API,{
