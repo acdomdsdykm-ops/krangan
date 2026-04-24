@@ -321,7 +321,7 @@ function reset(){
 /* ================= PDF ================= */
 function generatePDF(){
 
-  showLoading("Menjana PDF...");
+  showLoading("Menjana laporan rasmi...");
 
   fetch(API,{
     method:"POST",
@@ -329,8 +329,12 @@ function generatePDF(){
   })
   .then(r=>r.json())
   .then(res=>{
+
     hideLoading();
-    pdfBox.innerHTML = `<a href="${res.url}" target="_blank">📄 Buka PDF</a>`;
+
+    // buka PDF dalam tab baru
+    window.open(res.url, "_blank");
+
   });
 }
 
