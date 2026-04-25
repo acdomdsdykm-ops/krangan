@@ -2,7 +2,7 @@
 <html lang="ms">
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sistem Kehadiran Sekolah</title>
+<title>Sistem Kehadiran Staf MDS</title>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -14,15 +14,27 @@ body {
   background: #f5f5f5;
 }
 
+/* HEADER */
 .logo {
   width: 90px;
-  margin: 15px auto;
+  margin: 10px auto;
   display: block;
 }
 
+.school-name {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.school-sub {
+  font-size: 12px;
+  color: #555;
+}
+
+/* UI */
 .box { display:none; padding:10px; }
 
-input, button {
+input, select, button {
   padding:12px;
   width:85%;
   margin:6px;
@@ -34,9 +46,15 @@ button {
   background:#3498db;
   color:white;
   border:none;
-  cursor:pointer;
 }
 
+/* QR */
+#reader {
+  width:300px;
+  margin:auto;
+}
+
+/* RESULT */
 #result {
   font-size:18px;
   font-weight:bold;
@@ -46,19 +64,37 @@ button {
 .success { color:green; }
 .error { color:red; }
 
-#reader {
-  width:300px;
-  margin:auto;
+/* CARD */
+.card {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.5);
+  background: white;
+  padding: 20px;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  width: 280px;
+  opacity: 0;
+  transition: 0.3s;
+  z-index: 9999;
 }
 
-.panel {
-  margin-top:15px;
-  background:white;
-  padding:10px;
-  border-radius:10px;
+.card.show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
 }
 
-/* ================= LOADING ================= */
+.badge {
+  display:inline-block;
+  margin-top:10px;
+  padding:5px 10px;
+  background:#2ecc71;
+  color:white;
+  border-radius:20px;
+}
+
+/* LOADING */
 .overlay {
   position:fixed;
   top:0;left:0;
@@ -74,300 +110,147 @@ button {
 }
 
 .spinner {
-  width:50px;
-  height:50px;
+  width:50px;height:50px;
   border:5px solid #ccc;
   border-top:5px solid #3498db;
   border-radius:50%;
   animation:spin 1s linear infinite;
-  margin-bottom:10px;
 }
 
 @keyframes spin {
-  0% {transform:rotate(0);}
-  100% {transform:rotate(360deg);}
+  100%{transform:rotate(360deg);}
 }
-
-/* ================= STUDENT CARD ================= */
-.card {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) scale(0.5);
-  background: white;
-  padding: 20px;
-  border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-  text-align: center;
-  width: 280px;
-  opacity: 0;
-  transition: all 0.35s ease;
-  z-index: 9999;
-}
-
-.card.show {
-  opacity: 1;
-  transform: translate(-50%, -50%) scale(1);
-}
-
-.card h2 {
-  margin: 10px 0;
-  color: #2ecc71;
-}
-
-.card p {
-  margin: 5px 0;
-  font-size: 14px;
-}
-
-.card .badge {
-  display: inline-block;
-  padding: 5px 10px;
-  background: #2ecc71;
-  color: white;
-  border-radius: 20px;
-  font-size: 12px;
-  margin-top: 10px;
-}
-
 </style>
 </head>
 
 <body>
 
-<img class="logo" src="logo.png">
-  <h2 class="school-name">SEKOLAH KEBANGSAAN KRANGAN</h2>
-  <p class="school-sub">Jalan Sekolah, 94700 Serian, Sarawak</p>
+<!-- HEADER -->
+<img class="logo" src="mds.png">
+<div class="school-name">MAJLIS DAERAH SIMUNJAN</div>
+<div class="school-sub">Sistem Kehadiran Staf Rasmi</div>
 
-</div>
-<h2>🏫 Sistem Kehadiran Sekolah</h2>
+<h2>🏢 Kehadiran Staf MDS</h2>
 
-<!-- LOADING -->
-<div id="overlay" class="overlay">
-  <div class="spinner"></div>
-  <div id="loadingText">Loading...</div>
-</div>
+<!-- DROPDOWN MESYUARAT -->
+<h3>📅 Pilih Mesyuarat</h3>
+<select id="mesyuarat">
+  <option value="Perlesenan">Jawatankuasa Perlesenan</option>
+  <option value="Pengurusan">Jawatankuasa Pengurusan</option>
+</select>
 
-<!-- LOGIN -->
+<!-- LOGIN (optional simple) -->
 <div id="loginBox" class="box" style="display:block;">
-  <input id="user" placeholder="Username"><br>
-  <input id="pass" type="password" placeholder="Password"><br>
+  <input id="user" placeholder="Username">
+  <input id="pass" type="password" placeholder="Password">
   <button onclick="login()">Login</button>
 </div>
 
 <!-- DASHBOARD -->
 <div id="dashboard" class="box">
 
-  <h3>📷 QR Scan</h3>
+  <h3>📷 Scan QR Staf</h3>
   <div id="reader"></div>
 
-  <p id="status">Sedia untuk scan...</p>
   <p id="result"></p>
-
-  <div id="pdfBox"></div>
-
-  <div id="adminPanel" class="panel" style="display:none;">
-    <h3>📊 Dashboard Analytics</h3>
-    <p id="totalMurid">-</p>
-    <p id="totalHadir">-</p>
-    <canvas id="chart"></canvas>
-  </div>
 
 </div>
 
-<!-- STUDENT CARD -->
-<div id="studentCard" class="card">
-  <h2 id="cName">Nama</h2>
-  <p id="cClass">Kelas</p>
+<!-- CARD -->
+<div id="card" class="card">
+  <h2 id="nama"></h2>
+  <p id="jawatan"></p>
   <div class="badge">✔ HADIR</div>
+</div>
+
+<!-- LOADING -->
+<div id="loading" class="overlay">
+  <div class="spinner"></div>
+  <p>Loading...</p>
 </div>
 
 <script>
 
-const API = "https://script.google.com/macros/s/AKfycbwr-Bt232--Q6OWdspX2_Oeb9sbcbeOi0vlJMGcV-k0gnJiphQNMHPWh7HU3OBFuNxf/exec";
+const API = "https://script.google.com/macros/s/AKfycbxQZGfqo9_DmjhxCN6AN3LrYZKJFplHrrRRNp3u4AjdoNf7z7OTdnRcwKtTOBbs7YDoKQ/exec";
 
-let role="", scanner, scanLock=false;
+let scanner;
+let lock=false;
 
-/* ================= DOM ================= */
-const overlay = document.getElementById("overlay");
-const loadingText = document.getElementById("loadingText");
-const user = document.getElementById("user");
-const pass = document.getElementById("pass");
-const loginBox = document.getElementById("loginBox");
-const dashboard = document.getElementById("dashboard");
-const status = document.getElementById("status");
-const result = document.getElementById("result");
-const pdfBox = document.getElementById("pdfBox");
-const adminPanel = document.getElementById("adminPanel");
-const totalMurid = document.getElementById("totalMurid");
-const totalHadir = document.getElementById("totalHadir");
-const chartCanvas = document.getElementById("chart");
-
-/* ================= LOADING ================= */
-function showLoading(t){
-  overlay.style.display="flex";
-  loadingText.innerText=t;
-}
-function hideLoading(){
-  overlay.style.display="none";
-}
-
-/* ================= CARD ================= */
-function showCard(nama, kelas){
-
-  const card = document.getElementById("studentCard");
-  const cName = document.getElementById("cName");
-  const cClass = document.getElementById("cClass");
-
-  cName.innerText = nama;
-  cClass.innerText = "Kelas: " + kelas;
-
-  card.classList.add("show");
-
-  setTimeout(()=>{
-    card.classList.remove("show");
-  }, 2500);
-}
-
-/* ================= LOGIN ================= */
+/* LOGIN SIMPLE */
 function login(){
-
-  showLoading("Login sistem...");
-
-  fetch(API,{
-    method:"POST",
-    body:JSON.stringify({
-      action:"login",
-      user:user.value,
-      pass:pass.value
-    })
-  })
-  .then(r=>r.json())
-  .then(res=>{
-
-    hideLoading();
-
-    if(!res.success){
-      alert("Login gagal");
-      return;
-    }
-
-    role=res.role;
-    loginBox.style.display="none";
-    dashboard.style.display="block";
-
-    if(role==="guru"||role==="admin"){
-      pdfBox.innerHTML=`<button onclick="generatePDF()">📄 Jana PDF</button>`;
-    }
-
-    if(role==="admin"){
-      adminPanel.style.display="block";
-      loadAnalytics();
-    }
-
-    startQR();
-  });
+  document.getElementById("loginBox").style.display="none";
+  document.getElementById("dashboard").style.display="block";
+  startQR();
 }
 
-/* ================= QR ================= */
+/* START QR */
 function startQR(){
-
-  scanner=new Html5Qrcode("reader");
+  scanner = new Html5Qrcode("reader");
 
   scanner.start(
     {facingMode:"environment"},
-    {fps:10,qrbox:250},
-    text=>{
+    {fps:10, qrbox:250},
+    text => {
 
-      if(scanLock)return;
-      scanLock=true;
+      if(lock) return;
+      lock = true;
 
-      status.innerText="Scanning...";
+      let mesyuarat = document.getElementById("mesyuarat").value;
 
       fetch(API,{
         method:"POST",
-        body:JSON.stringify({id:text})
+        body:JSON.stringify({
+          id:text,
+          mesyuarat:mesyuarat
+        })
       })
       .then(r=>r.json())
       .then(res=>{
 
         if(res.status==="duplicate"){
-          showResult("❌ "+res.message,"error");
+          showResult("❌ Sudah scan hari ini","error");
           reset();
           return;
         }
 
-        showResult("✅ "+res.nama+" ("+res.kelas+")","success");
+        showResult("✅ "+res.nama+" ("+res.jawatan+")","success");
 
-        showCard(res.nama, res.kelas);
+        showCard(res.nama, res.jawatan);
 
         new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg").play();
         if(navigator.vibrate) navigator.vibrate([200,100,200]);
 
         reset();
       });
+
     }
   );
 }
 
-function showResult(m,t){
-  result.innerText=m;
-  result.className=t;
+/* RESULT */
+function showResult(msg,type){
+  let r=document.getElementById("result");
+  r.innerText=msg;
+  r.className=type;
 }
 
+/* CARD */
+function showCard(nama,jawatan){
+  document.getElementById("nama").innerText=nama;
+  document.getElementById("jawatan").innerText="Jawatan: "+jawatan;
+
+  let c=document.getElementById("card");
+  c.classList.add("show");
+
+  setTimeout(()=>c.classList.remove("show"),2500);
+}
+
+/* RESET */
 function reset(){
-  setTimeout(()=>{
-    scanLock=false;
-    status.innerText="Sedia untuk scan...";
-  },1200);
-}
-
-/* ================= PDF ================= */
-function generatePDF(){
-
-  showLoading("Menjana laporan rasmi...");
-
-  fetch(API,{
-    method:"POST",
-    body:JSON.stringify({action:"pdf"})
-  })
-  .then(r=>r.json())
-  .then(res=>{
-
-    hideLoading();
-
-    // buka PDF dalam tab baru
-    window.open(res.url, "_blank");
-
-  });
-}
-
-/* ================= ANALYTICS ================= */
-function loadAnalytics(){
-
-  fetch(API,{
-    method:"POST",
-    body:JSON.stringify({action:"analytics"})
-  })
-  .then(r=>r.json())
-  .then(res=>{
-
-    totalMurid.innerText="Total Murid: "+res.totalMurid;
-    totalHadir.innerText="Total Hadir: "+res.totalHadir;
-
-    new Chart(chartCanvas,{
-      type:"bar",
-      data:{
-        labels:["Hadir","Tidak"],
-        datasets:[{
-          data:[res.totalHadir,res.totalTidak]
-        }]
-      }
-    });
-
-  });
+  setTimeout(()=>lock=false,1200);
 }
 
 </script>
+
 </body>
 </html>
